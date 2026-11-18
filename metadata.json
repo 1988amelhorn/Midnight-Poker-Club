@@ -1,0 +1,6 @@
+{
+  "name": "Midnight Poker Club",
+  "description": "Where Legends Go All In. Multiplayer social casino with server-authoritative No-Limit Texas Hold'em, Blackjack, tournaments, virtual chip wallets, friends, and live tables.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
