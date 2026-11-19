@@ -910,7 +910,7 @@ export class GameManager {
     }, pauseMs);
   }
 
-  // TOURNAMENTS (Single-Table Texas Hold'em)
+  // TOURNAMENTS (Open registration, multi-table Texas Hold'em)
   public createTournament(params: {
     creatorId: string;
     name: string;
@@ -936,7 +936,9 @@ export class GameManager {
       return { ok: false, error: 'Tournament name must be 2–60 characters' };
     }
 
-    const maxPlayers = Math.max(2, Math.min(180, Math.floor(params.maxPlayers)));
+    // Open-registration tournaments do not ask hosts to pick a player count.
+    // Keep a high server-side safety ceiling to prevent unbounded memory usage.
+    const maxPlayers = 9000;
     const startingChips = Math.max(500, params.startingChips ?? 5000);
     const startingSb = Math.max(5, params.startingSb ?? 25);
     const startingBb = Math.max(startingSb * 2, params.startingBb ?? startingSb * 2);
@@ -962,7 +964,7 @@ export class GameManager {
       entryFee,
       allowProbabilityAssist: params.allowProbabilityAssist ?? true,
       gameSpeed: params.gameSpeed ?? 'normal',
-      startCondition: params.startCondition ?? 'host_or_full',
+      startCondition: 'host_or_full',
       status: 'registering',
       currentLevel: 1,
       levelEndsAt: null,
@@ -986,7 +988,7 @@ export class GameManager {
       isBot: false,
     });
 
-    const requestedBots = Math.max(0, Math.min(maxPlayers - 1, Math.floor(params.initialBots ?? 0)));
+    const requestedBots = Math.max(0, Math.min(8, Math.floor(params.initialBots ?? 0)));
     for (let i = 0; i < requestedBots; i++) {
       const usedNames = new Set(Array.from(tourn.players.values()).map((p) => p.username));
       const persona = this.pickBotPersona(usedNames);
@@ -1036,12 +1038,8 @@ export class GameManager {
       botDifficulty: difficulty || 'normal',
     });
 
-    if (tourn.startCondition === 'auto_when_full' && tourn.players.size === tourn.maxPlayers) {
-      this.startTournament(tourn.creatorId, tourn.id);
-    } else {
-      this.broadcastTournamentUpdate(tourn);
-      this.broadcastLobbyUpdate();
-    }
+    this.broadcastTournamentUpdate(tourn);
+    this.broadcastLobbyUpdate();
 
     return { ok: true, tournament: this.summarizeTournament(tourn), botUserId: botId };
   }
