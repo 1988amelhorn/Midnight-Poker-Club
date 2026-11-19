@@ -135,18 +135,21 @@ export const BlackjackTableView: React.FC<{
     onExit();
   };
 
-  const handleSendChat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatText.trim()) return;
+  const sendTableMessage = async (message: string, isEmote = false) => {
+    if (!message.trim()) return;
     try {
       await apiFetch('/api/chat', {
         method: 'POST',
-        body: JSON.stringify({ channelType: 'room', channelId: roomId, message: chatText.trim() }),
+        body: JSON.stringify({ channelType: 'room', channelId: roomId, message: message.trim(), isEmote }),
       });
-      setChatText('');
+      if (!isEmote) setChatText('');
     } catch (err) {
       setNotice(err instanceof Error ? err.message : 'Message failed');
     }
+  };
+  const handleSendChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    void sendTableMessage(chatText);
   };
 
   return (
@@ -433,6 +436,15 @@ export const BlackjackTableView: React.FC<{
                   <span className="font-semibold text-cyan-300">{m.senderUsername}: </span>
                   <span className="text-slate-200">{m.message}</span>
                 </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-1 py-2" aria-label="Quick table reactions">
+              {['🔥','👏','😎','😂','👀','🍀'].map((emoji) => (
+                <button key={emoji} type="button" aria-label={`Send ${emoji} reaction`}
+                  onClick={() => void sendTableMessage(emoji, true)}
+                  className="btn-glossy btn-glossy-dark rounded-full p-1.5 text-base hover:scale-110">
+                  {emoji}
+                </button>
               ))}
             </div>
             <form onSubmit={handleSendChat} className="flex gap-1.5 pt-1.5">
