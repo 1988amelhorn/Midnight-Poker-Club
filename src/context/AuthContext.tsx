@@ -227,10 +227,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!/^[a-zA-Z0-9_]{3,24}$/.test(username)) {
       throw new Error('Username must be 3–24 letters, numbers, or underscores.');
     }
-    const { data: matches, error: checkError } = await supabase
-      .from('profiles').select('uid').ilike('username', username).limit(1);
-    if (checkError) throw new Error(`Username check failed: ${checkError.message}`);
-    if (matches?.length) throw new Error('That username is already taken.');
+    // The signup form runs before authentication. Check only availability through
+    // the database RPC, not an anonymous SELECT against protected player profiles.
+    const { data: usernameAvailable, error: checkError } = await supabase.rpc(
+      'check_username_available',
+      { p_username: username }
+    );
+    if (checkError) throw new Error(`Unable to check username availability: ${checkError.message}`);
+    if (usernameAvailable !== true) throw new Error('That username is already taken.');
 
     const { data, error } = await supabase.auth.signUp({
       email: params.email.trim().toLowerCase(),
