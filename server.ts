@@ -553,6 +553,7 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     const isMember =
       room.visibility === 'public' ||
       room.hostId === uid ||
+      (room.tournamentId && gameManager.tournaments.get(room.tournamentId)?.players.has(uid)) ||
       room.pokerEngine?.seats.some((s) => s.userId === uid) ||
       room.blackjackEngine?.seats.some((s) => s.userId === uid);
     if (!isMember) return res.status(403).json({ error: 'Private room access requires invitation code' });
