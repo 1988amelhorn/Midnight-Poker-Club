@@ -169,7 +169,7 @@ export const AuthViews: React.FC<{
       <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[540px] h-[540px] rounded-full bg-cyan-500/18 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-24 right-1/4 w-[440px] h-[440px] rounded-full bg-purple-600/22 blur-[120px]" />
 
-      <div className="relative z-10 w-full max-w-md rounded-[32px] glass-bubbly border-2 border-cyan-400/35 p-6 sm:p-8 shadow-[0_0_50px_rgba(56,189,248,0.22),0_20px_50px_rgba(0,0,0,0.8)]">
+      <div className="relative z-10 w-full max-w-md rounded-[34px] glass-bubbly glow-border-animated animate-neon-breathe border-2 border-cyan-400/35 p-6 sm:p-8 shadow-[0_0_50px_rgba(56,189,248,0.22),0_20px_50px_rgba(0,0,0,0.8)]">
         {mode !== 'welcome' && (
           <div className="flex items-center justify-between gap-2 mb-5">
             <button
@@ -226,14 +226,14 @@ export const AuthViews: React.FC<{
               <button
                 type="button"
                 onClick={() => setMode('signup')}
-                className="w-full py-3.5 rounded-full btn-glossy btn-glossy-green text-slate-950 font-display font-extrabold text-sm"
+                className="w-full py-4 rounded-full btn-glossy btn-glossy-green text-slate-950 font-display font-extrabold text-base tracking-wide"
               >
                 Sign Up
               </button>
               <button
                 type="button"
                 onClick={() => setMode('login')}
-                className="w-full py-3.5 rounded-full btn-glossy btn-glossy-blue text-white font-display font-bold text-sm"
+                className="w-full py-4 rounded-full btn-glossy btn-glossy-blue text-white font-display font-extrabold text-base tracking-wide"
               >
                 Login
               </button>
@@ -356,7 +356,7 @@ export const AuthViews: React.FC<{
             <button
               type="submit"
               disabled={submitting || usernameStatus === 'taken' || usernameStatus === 'invalid'}
-              className="w-full py-3.5 rounded-full btn-glossy btn-glossy-green text-slate-950 font-display font-extrabold text-sm disabled:opacity-50"
+              className="w-full py-4 rounded-full btn-glossy btn-glossy-green text-slate-950 font-display font-extrabold text-base tracking-wide disabled:opacity-50"
             >
               {submitting ? 'Creating Account...' : 'Create Account & Claim 5,000 Chips'}
             </button>
@@ -425,7 +425,7 @@ export const AuthViews: React.FC<{
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3.5 rounded-full btn-glossy btn-glossy-blue text-white font-display font-extrabold text-sm disabled:opacity-50"
+              className="w-full py-4 rounded-full btn-glossy btn-glossy-blue text-white font-display font-extrabold text-base tracking-wide disabled:opacity-50"
             >
               {submitting ? 'Signing in...' : 'Sign In'}
             </button>
@@ -433,7 +433,7 @@ export const AuthViews: React.FC<{
             <button
               type="button"
               onClick={() => void handleGoogle()}
-              className="w-full py-3 rounded-full btn-glossy btn-glossy-dark text-slate-100 font-semibold text-sm flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-full btn-glossy btn-glossy-dark text-slate-100 font-semibold text-sm flex items-center justify-center gap-2"
             >
               <span className="w-5 h-5 rounded-full bg-white text-slate-950 font-extrabold text-xs inline-flex items-center justify-center">G</span>
               <span>Continue with Google</span>

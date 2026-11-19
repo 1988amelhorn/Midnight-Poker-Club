@@ -11,6 +11,7 @@ import {
   type LastBlackjackRoundSummary,
 } from '../shared/blackjackHelpers.ts';
 import { PlayerAvatar } from '../utils/avatars.tsx';
+import { celebrateWin } from '../utils/celebrate.ts';
 import { soundEngine } from '../utils/soundEngine.ts';
 import { ChipStack } from './ChipStack.tsx';
 import { PlayingCard } from './PlayingCard.tsx';
@@ -75,6 +76,7 @@ export const BlackjackTableView: React.FC<{
         if (won && soundEngine.shouldPlayOnce(`bj:win:${blackjackState.roomId}:${blackjackState.roundNumber}`)) {
           soundEngine.playHandWin();
         }
+        celebrateWin(won ? 'big' : 'hand', !prefersReducedMotion);
       }
     }
 
@@ -89,7 +91,7 @@ export const BlackjackTableView: React.FC<{
         setLastRoundSummary(formatted);
       }
     }
-  }, [blackjackState, user?.id]);
+  }, [blackjackState, user?.id, prefersReducedMotion]);
 
   const mySeat = blackjackState?.seats.find((s) => s.userId === user?.id);
   const handStatusSummary = useMemo(

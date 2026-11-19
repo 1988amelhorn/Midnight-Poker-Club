@@ -49,10 +49,16 @@ export const ChipStack: React.FC<{
           />
         ))}
       </div>
-      <span className="font-mono text-xs font-bold text-amber-300 tabular-nums whitespace-nowrap">
+      <motion.span
+        key={amount}
+        initial={{ y: 6, opacity: 0.2, scale: 0.92 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 26 }}
+        className="font-mono text-xs font-bold text-amber-300 tabular-nums whitespace-nowrap"
+      >
         {label ? `${label} ` : ''}
         {amount.toLocaleString()}
-      </span>
+      </motion.span>
     </motion.div>
   );
 };
