@@ -34,6 +34,7 @@ import {
   type LastHoldemHandSummary,
 } from '../shared/pokerEvaluator.ts';
 import { PlayerAvatar } from '../utils/avatars.tsx';
+import { PlayerCardModal } from './PlayerCardModal.tsx';
 import { soundEngine } from '../utils/soundEngine.ts';
 import { ChipStack } from './ChipStack.tsx';
 import { PlayingCard } from './PlayingCard.tsx';
@@ -94,6 +95,7 @@ export const PokerTableView: React.FC<{
   const [reportTarget, setReportTarget] = useState<PokerSeatPublic | null>(null);
   const [reportReason, setReportReason] = useState('Collusion or suspicious play');
   const [chatText, setChatText] = useState('');
+  const [viewPlayerId, setViewPlayerId] = useState<string | null>(null);
   const [statusNotice, setStatusNotice] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
   const [revealedBoardCount, setRevealedBoardCount] = useState(0);
@@ -876,7 +878,9 @@ export const PokerTableView: React.FC<{
                   data-testid={`poker-seat-plate-${seat.seatIndex}`}
                   className={`relative flex items-center gap-1.5 sm:gap-2 rounded-2xl sm:rounded-[24px] border-2 px-2 py-1 sm:px-3 sm:py-1.5 min-w-[96px] sm:min-w-[152px] max-w-[126px] sm:max-w-[196px] shadow-[0_10px_28px_rgba(0,0,0,0.65)] backdrop-blur-md transition-all ${ringStyle}`}
                 >
-                  <PlayerAvatar avatarId={seat.avatarId} username={seat.username} size={isLocal ? 'sm' : 'xs'} />
+                  <button type="button" disabled={Boolean(seat.isBot)} aria-label={`View ${seat.username} profile`} title={seat.isBot ? 'Poker bot' : `View ${seat.username} stats`} onClick={(event) => { event.stopPropagation(); setViewPlayerId(seat.userId); }} className="shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:cursor-default">
+                    <PlayerAvatar avatarId={seat.avatarId} username={seat.username} size={isLocal ? 'sm' : 'xs'} />
+                  </button>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1 min-w-0">
                       <span className={`text-[11px] sm:text-xs font-semibold truncate ${seatIsWinner ? 'text-amber-300' : 'text-white'}`}>
@@ -1564,6 +1568,7 @@ export const PokerTableView: React.FC<{
           </div>
         </div>
       )}
+      {viewPlayerId && <PlayerCardModal playerId={viewPlayerId} onClose={() => setViewPlayerId(null)} />}
     </div>
   );
 };

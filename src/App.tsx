@@ -490,15 +490,16 @@ const ClubShell: React.FC = () => {
         Midnight Poker Club · Where Legends Go All In. · Virtual chips for social entertainment only · No monetary value or real-money wagering
       </footer>
 
-      {/* Mobile Bottom Tab Bar (matches Reference Image 1: Home, Games, Inbox, Profile) */}
+      {/* Mobile Bottom Tab Bar (Home, Games, Friends, Inbox, Profile) */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-sky-400/20 bg-[#080d1e]/95 backdrop-blur-xl px-2 py-1.5 grid grid-cols-4 gap-1.5 shadow-[0_-8px_24px_rgba(0,0,0,0.6)]"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-sky-400/20 bg-[#080d1e]/95 backdrop-blur-xl px-2 py-1.5 grid grid-cols-5 gap-1 shadow-[0_-8px_24px_rgba(0,0,0,0.6)]"
       >
         {[
           { id: 'lobby' as AppScreen, label: 'Home', icon: Home, active: screen === 'lobby' },
           { id: 'holdem_browser' as AppScreen, label: 'Games', icon: Spade, active: isGamesActive || isEventsActive },
-          { id: 'inbox' as AppScreen, label: 'Inbox', icon: Mail, active: screen === 'inbox' || screen === 'friends' },
+          { id: 'friends' as AppScreen, label: 'Friends', icon: Users, active: screen === 'friends' },
+          { id: 'inbox' as AppScreen, label: 'Inbox', icon: Mail, active: screen === 'inbox' },
           { id: 'profile' as AppScreen, label: 'Profile', icon: User, active: screen === 'profile' || screen === 'settings' || screen === 'wallet' },
         ].map((tab) => (
           <button

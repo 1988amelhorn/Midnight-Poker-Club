@@ -11,6 +11,7 @@ import {
   type LastBlackjackRoundSummary,
 } from '../shared/blackjackHelpers.ts';
 import { PlayerAvatar } from '../utils/avatars.tsx';
+import { PlayerCardModal } from './PlayerCardModal.tsx';
 import { soundEngine } from '../utils/soundEngine.ts';
 import { ChipStack } from './ChipStack.tsx';
 import { PlayingCard } from './PlayingCard.tsx';
@@ -36,6 +37,7 @@ export const BlackjackTableView: React.FC<{
   const [showChat, setShowChat] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [chatText, setChatText] = useState('');
+  const [viewPlayerId, setViewPlayerId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [lastRoundSummary, setLastRoundSummary] = useState<LastBlackjackRoundSummary | null>(null);
   const prevPhaseRef = useRef<string>('');
@@ -399,7 +401,9 @@ export const BlackjackTableView: React.FC<{
 
                     {/* Player Plate */}
                     <div className="flex items-center gap-2 max-w-full">
-                      <PlayerAvatar avatarId={seat.avatarId} username={seat.username} size="sm" />
+                      <button type="button" aria-label={`View ${seat.username} profile`} onClick={(event) => { event.stopPropagation(); setViewPlayerId(seat.userId); }} className="shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300">
+                        <PlayerAvatar avatarId={seat.avatarId} username={seat.username} size="sm" />
+                      </button>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-white truncate">{isMe ? 'You' : seat.username}</p>
                         <p className="font-mono text-xs font-bold text-amber-300 tabular-nums">
@@ -702,6 +706,7 @@ export const BlackjackTableView: React.FC<{
           </div>
         </div>
       )}
+      {viewPlayerId && <PlayerCardModal playerId={viewPlayerId} onClose={() => setViewPlayerId(null)} />}
     </div>
   );
 };
