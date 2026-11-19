@@ -96,6 +96,47 @@ async function run() {
     });
     assert(message.type === 'pong', 'WebSocket ping failed');
     console.log('PASS: authenticated live WebSocket ping');
+
+    // Exercise Blackjack through the deployed API, not only the engine tests.
+    await request('/api/rooms/' + roomId + '/leave', 'POST', players[1]);
+    await request('/api/rooms/' + roomId + '/leave', 'POST', players[0]);
+    const bj = await request('/api/rooms', 'POST', players[0], {
+      name: 'Blackjack Smoke ' + suffix,
+      gameType: 'blackjack',
+      visibility: 'private',
+      maxPlayers: 1,
+      minBuyin: 500,
+      maxBuyin: 2000,
+      buyinAmount: 500,
+    });
+    assert(bj.status === 201 && bj.body.room?.id,
+      'Blackjack table create failed: ' + JSON.stringify(bj));
+    const bjRoomId = bj.body.room.id;
+    const bjStart = await request('/api/rooms/' + bjRoomId + '/start', 'POST', players[0]);
+    assert(bjStart.status === 200 && bjStart.body.ok,
+      'Blackjack round failed to start: ' + JSON.stringify(bjStart));
+    const bet = await request('/api/rooms/' + bjRoomId + '/blackjack/action', 'POST', players[0], {
+      action: 'place_bet', amount: 100, actionId: 'smoke-bj-' + suffix,
+    });
+    assert(bet.status === 200 && bet.body.ok,
+      'Blackjack bet failed: ' + JSON.stringify(bet));
+    console.log('PASS: live blackjack room, round and bet');
+
+    await request('/api/rooms/' + bjRoomId + '/leave', 'POST', players[0]);
+    const withBot = await request('/api/rooms', 'POST', players[0], {
+      name: 'Bot Smoke ' + suffix,
+      gameType: 'holdem', visibility: 'private', maxPlayers: 2,
+      minBuyin: 500, maxBuyin: 2000, buyinAmount: 500,
+      initialBots: 1, botDifficulty: 'normal',
+    });
+    assert(withBot.status === 201 && withBot.body.room?.id,
+      'Bot room creation failed: ' + JSON.stringify(withBot));
+    const botRoomId = withBot.body.room.id;
+    const botStart = await request('/api/rooms/' + botRoomId + '/start', 'POST', players[0]);
+    assert(botStart.status === 200 && botStart.body.ok,
+      'Poker game with bot failed to start: ' + JSON.stringify(botStart));
+    console.log('PASS: live poker game against bot');
+    await request('/api/rooms/' + botRoomId + '/leave', 'POST', players[0]);
   } finally {
     for (const token of players) {
       try { await request('/api/account', 'DELETE', token); } catch {}
