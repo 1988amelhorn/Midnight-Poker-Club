@@ -22,6 +22,7 @@ interface GameSocketContextValue {
   lobbyRooms: GameRoomSummary[];
   lobbyTournaments: TournamentSummary[];
   actionError: string | null;
+  friendRequestRefreshVersion: number;
   clearActionError: () => void;
   subscribeRoom: (roomId: string | null) => void;
   subscribeTournament: (tournamentId: string | null) => void;
@@ -50,6 +51,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [lobbyRooms, setLobbyRooms] = useState<GameRoomSummary[]>([]);
   const [lobbyTournaments, setLobbyTournaments] = useState<TournamentSummary[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [friendRequestRefreshVersion, setFriendRequestRefreshVersion] = useState(0);
 
   const refreshLobby = useCallback(async () => {
     if (!token) return;
@@ -140,6 +142,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           } else if (msg.type === 'wallet:refresh') {
             void refreshWallet();
           } else if (msg.type === 'notifications:refresh') {
+            setFriendRequestRefreshVersion((v) => v + 1);
             void refreshSession();
           } else if (msg.type === 'action:error' && msg.error) {
             setActionError(msg.error);
@@ -245,6 +248,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         lobbyRooms,
         lobbyTournaments,
         actionError,
+        friendRequestRefreshVersion,
         clearActionError: () => setActionError(null),
         subscribeRoom,
         subscribeTournament,

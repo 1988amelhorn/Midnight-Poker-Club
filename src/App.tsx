@@ -102,14 +102,42 @@ function getInitialAuthMode(): AuthScreenMode {
 
 const ClubShell: React.FC = () => {
   const { loading, user, wallet, activeRoom, passwordRecoveryActive, refreshWallet, refreshSession } = useAuth();
-  const { reconnecting } = useGameSocket();
+  const { reconnecting, friendRequestRefreshVersion } = useGameSocket();
 
   const [screen, setScreen] = useState<AppScreen>('lobby');
+  const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
+  const [friendRequestRefresh, setFriendRequestRefresh] = useState(0);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [spectating, setSpectating] = useState<{roomId: string; friendId: string; username: string} | null>(null);
   const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
   const [tournamentTab, setTournamentTab] = useState<'lobby' | 'info' | 'standings' | 'winner'>('lobby');
   const [prefillJoinCode, setPrefillJoinCode] = useState('');
+
+  // Keep the home and mobile Friends badges in sync with accepted/rejected requests.
+  useEffect(() => {
+    if (!user) {
+      setPendingFriendRequests(0);
+      return;
+    }
+    let active = true;
+    const check = async () => {
+      try {
+        const result = await apiFetch<{ incomingRequests: Array<{ id: string }> }>('/api/friends');
+        if (active) setPendingFriendRequests(result.incomingRequests?.length ?? 0);
+      } catch {
+        // Keep the prior count during short-lived network failures.
+      }
+    };
+    void check();
+    const interval = setInterval(() => void check(), 15_000);
+    const onFocus = () => void check();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      active = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [user?.id, friendRequestRefreshVersion, friendRequestRefresh, screen]);
 
   // Reset navigation cleanly on logout
   useEffect(() => {
@@ -356,7 +384,7 @@ const ClubShell: React.FC = () => {
 
       {/* Main Content Workspace */}
       <main className="flex-1 pb-20 md:pb-8">
-        {screen === 'lobby' && <MainLobbyView onNavigate={handleNavigate} />}
+        {screen === 'lobby' && <MainLobbyView onNavigate={handleNavigate} pendingFriendRequests={pendingFriendRequests} />}
 
         {screen === 'holdem_browser' && (
           <RoomBrowserView
@@ -460,6 +488,7 @@ const ClubShell: React.FC = () => {
         {screen === 'friends' && (
           <FriendsView
             onBack={() => setScreen('lobby')}
+            onRequestsChanged={() => setFriendRequestRefresh((v) => v + 1)}
             onJoinFriendRoom={(rId, friendId) => void joinRoomById(rId, friendId)}
             onWatchFriendRoom={(roomId, friendId, username) => setSpectating({ roomId, friendId, username })}
           />
@@ -512,7 +541,14 @@ const ClubShell: React.FC = () => {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <tab.icon className="w-4 h-4 mb-0.5" />
+            <span className="relative">
+              <tab.icon className="w-4 h-4 mb-0.5" />
+              {tab.id === 'friends' && pendingFriendRequests > 0 && (
+                <span aria-label={`${pendingFriendRequests} pending friend requests`} className="absolute -right-3 -top-2 min-w-4 h-4 px-0.5 rounded-full bg-rose-500 text-white text-[10px] font-extrabold grid place-items-center ring-2 ring-[#080d1e]">
+                  {pendingFriendRequests > 99 ? '99+' : pendingFriendRequests}
+                </span>
+              )}
+            </span>
             <span>{tab.label}</span>
           </button>
         ))}
