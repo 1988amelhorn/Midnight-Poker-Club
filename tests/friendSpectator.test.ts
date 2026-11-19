@@ -31,7 +31,7 @@ describe('accepted-friend read-only spectating', () => {
       const stranger = await register('spectstranger@test.example', 'SpectStranger');
       const create = await req('/api/rooms', 'POST', host.token,
         { name: 'Private Watch Table', gameType: 'holdem', visibility: 'private',
-          maxPlayers: 2, buyinAmount: 500, initialBots: 1 });
+          maxPlayers: 3, buyinAmount: 500, initialBots: 1 });
       expect(create.status).toBe(201);
       const roomId = create.json.room.id as string;
       const url = `/api/rooms/${roomId}/spectate?friendId=${host.user.id}`;
