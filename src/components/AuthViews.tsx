@@ -549,6 +549,14 @@ export const AuthViews: React.FC<{
             </button>
           </form>
         )}
+
+        {(mode === 'welcome' || mode === 'login' || mode === 'signup') && (
+          <div className="mt-6 pt-4 border-t border-violet-300/15 text-center">
+            <p className="text-[11px] tracking-[0.16em] uppercase font-medium text-slate-400/85">
+              Created by <span className="text-violet-200/90 font-semibold">A.M.</span>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Supabase Credentials & OAuth Setup Guidance Modal */}
