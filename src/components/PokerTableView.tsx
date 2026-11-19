@@ -39,7 +39,7 @@ import { soundEngine } from '../utils/soundEngine.ts';
 import { ChipStack } from './ChipStack.tsx';
 import { PlayingCard } from './PlayingCard.tsx';
 
-const QUICK_EMOTES = ['🔥', '👏', '😎', '🤯', '🍀', '💎'];
+const QUICK_EMOTES = ['🔥', '👏', '😎', '😂', '👀', '🍀'] as const;
 
 // Seat positions (% left, % top) around the oval table relative to local player at bottom center (index 0).
 // Kept well inside [15..85]% horizontal and [11..84]% vertical so cards and plates never clip or overlap on 375px screens.
@@ -91,6 +91,8 @@ export const PokerTableView: React.FC<{
   const [betAmount, setBetAmount] = useState(100);
   const [showOddsDrawer, setShowOddsDrawer] = useState(false);
   const [showChatDrawer, setShowChatDrawer] = useState(false);
+  const [showQuickReactions, setShowQuickReactions] = useState(false);
+  const [sendingReaction, setSendingReaction] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [reportTarget, setReportTarget] = useState<PokerSeatPublic | null>(null);
   const [reportReason, setReportReason] = useState('Collusion or suspicious play');
@@ -267,6 +269,15 @@ export const PokerTableView: React.FC<{
   const mySeat = pokerState?.seats.find((s) => s.userId === user?.id);
   const legal = pokerState?.legalActions;
   const isMyTurn = pokerState?.currentTurnUserId === user?.id && Boolean(legal);
+
+  // Free the table and action controls as soon as it's this player's turn.
+  // Reactions are decorative chat events, never poker actions or chip bets.
+  useEffect(() => {
+    if (isMyTurn) {
+      setShowChatDrawer(false);
+      setShowQuickReactions(false);
+    }
+  }, [isMyTurn]);
   const showdownReady = pokerState?.street === 'showdown' && revealedBoardCount >= (pokerState?.communityCards.length ?? 0);
   const primaryWinner = showdownReady ? pokerState?.winners?.[0] ?? null : null;
 
@@ -493,7 +504,8 @@ export const PokerTableView: React.FC<{
   const handleSendChat = async (e?: React.FormEvent, emoteText?: string) => {
     e?.preventDefault();
     const msg = emoteText || chatText.trim();
-    if (!msg) return;
+    if (!msg || (emoteText && (sendingReaction || isMyTurn))) return;
+    if (emoteText) setSendingReaction(true);
     try {
       await apiFetch('/api/chat', {
         method: 'POST',
@@ -505,8 +517,11 @@ export const PokerTableView: React.FC<{
         }),
       });
       if (!emoteText) setChatText('');
+      else setShowQuickReactions(false);
     } catch (err) {
       setStatusNotice(err instanceof Error ? err.message : 'Message blocked');
+    } finally {
+      if (emoteText) setSendingReaction(false);
     }
   };
 
@@ -638,9 +653,42 @@ export const PokerTableView: React.FC<{
             </span>
           </button>
 
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              aria-label="Quick poker reactions"
+              aria-expanded={showQuickReactions}
+              disabled={isMyTurn}
+              onClick={() => {
+                setShowChatDrawer(false);
+                setShowQuickReactions((v) => !v);
+              }}
+              className="btn-glossy btn-glossy-purple rounded-full w-10 h-10 flex items-center justify-center text-lg disabled:opacity-45"
+              title={isMyTurn ? "Focus on your turn" : "Send a table reaction"}
+            >😂</button>
+            {showQuickReactions && !isMyTurn && (
+              <div role="group" aria-label="Choose a poker reaction"
+                className="absolute right-0 top-full mt-2 z-[60] rounded-2xl border border-violet-300/50 bg-[#100c30]/95 shadow-[0_0_22px_rgba(126,75,255,.45)] px-2 py-2 flex items-center gap-1 max-w-[calc(100vw-12px)]">
+                {QUICK_EMOTES.map((em) => (
+                  <button
+                    key={em}
+                    type="button"
+                    disabled={sendingReaction}
+                    aria-label={`Send ${em} poker reaction`}
+                    onClick={() => void handleSendChat(undefined, em)}
+                    className="btn-glossy btn-glossy-dark w-9 h-9 shrink-0 rounded-full text-base disabled:opacity-50"
+                  >{em}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
-            onClick={() => setShowChatDrawer((v) => !v)}
+            onClick={() => {
+              setShowQuickReactions(false);
+              setShowChatDrawer((v) => !v);
+            }}
             className={`btn-glossy inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition min-h-[40px] ${
               showChatDrawer
                 ? 'btn-glossy-blue border-sky-300/60 text-white'
@@ -1127,8 +1175,10 @@ export const PokerTableView: React.FC<{
                   <button
                     key={em}
                     type="button"
+                    aria-label={`Send ${em} poker reaction`}
+                    disabled={sendingReaction || isMyTurn}
                     onClick={() => void handleSendChat(undefined, em)}
-                    className="w-9 h-9 rounded-lg bg-slate-900 hover:bg-slate-800 text-base transition"
+                    className="btn-glossy btn-glossy-dark w-9 h-9 shrink-0 rounded-full text-base disabled:opacity-50"
                   >
                     {em}
                   </button>
