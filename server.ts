@@ -18,6 +18,7 @@ import {
   publicSupabaseConfig,
   supabaseAdmin,
   createSupabaseUserClient,
+  supabaseAuthVerifier,
 } from './server/supabaseAdmin.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -118,6 +119,59 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     }
     return next();
   }
+
+  // Verified Supabase Auth is required for EVERY owner request; a forged
+  // local session or client-controlled profile role never grants ownership.
+  async function isVerifiedOwner(req: AuthedRequest): Promise<boolean> {
+    const ownerId = process.env.MPC_OWNER_UID;
+    if (!ownerId || !supabaseAuthVerifier) return false;
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    if (token.split('.').length !== 3) return false;
+    const { data, error } = await supabaseAuthVerifier.auth.getUser(token);
+    return !error && data.user?.id === ownerId && req.authUser?.profile.id === ownerId;
+  }
+
+  async function requireOwner(req: AuthedRequest, res: Response, next: NextFunction) {
+    try {
+      if (!(await isVerifiedOwner(req))) return res.status(403).json({ error: 'Owner permission required' });
+      return next();
+    } catch {
+      return res.status(503).json({ error: 'Owner verification temporarily unavailable' });
+    }
+  }
+
+  app.get('/api/owner/status', requireAuth, async (req: AuthedRequest, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try { return res.json({ isOwner: await isVerifiedOwner(req) }); }
+    catch { return res.json({ isOwner: false }); }
+  });
+
+  app.get('/api/owner/metrics', requireAuth, requireOwner, async (req: AuthedRequest, res) => {
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    const db = createSupabaseUserClient(token);
+    if (!db) return res.status(503).json({ error: 'Supabase account statistics unavailable' });
+    const [profiles, matches] = await Promise.all([
+      db.from('profiles').select('uid', { count: 'exact', head: true }),
+      db.from('matches').select('id', { count: 'exact', head: true }),
+    ]);
+    if (profiles.error) return res.status(503).json({ error: 'Could not load signup count' });
+    res.setHeader('Cache-Control', 'no-store');
+    const activeRooms = Array.from(gameManager.rooms.values()).filter((r) =>
+      r.status === 'active' && Boolean(
+        r.pokerEngine?.seats.some((s) => !s.isBot) || r.blackjackEngine?.seats.length
+      )).length;
+    const localOnlineUsers = Array.from(dataStore.onlineUsers.values()).filter((p) =>
+      Date.now() - p.lastPing < 60_000
+    ).length;
+    res.json({
+      registeredPlayers: profiles.count ?? 0,
+      gamesRecorded: matches.error ? null : matches.count ?? 0,
+      localOnlineUsers,
+      localActiveTables: activeRooms,
+      scope: 'Registration totals are database-wide. Online players and active tables are only this server instance.',
+      checkedAt: new Date().toISOString(),
+    });
+  });
 
   // HEALTH & PUBLIC CONFIG
   app.get('/api/health', (_req, res) => {
@@ -282,6 +336,49 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     return res.json(result);
   });
 
+  // Virtual-chip prize selection is server-side and atomic in Supabase,
+  // so a user cannot choose their own prize or claim twice in one UTC day.
+  app.get('/api/wheel/status', requireAuth, async (req: AuthedRequest, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Sign in with your Supabase account to spin.' });
+    const uid = req.authUser!.profile.id;
+    const { data, error } = await db.from('daily_wheel_claims')
+      .select('spin_day,prize').eq('uid', uid)
+      .order('spin_day', { ascending: false }).limit(1).maybeSingle();
+    if (error) return res.status(503).json({ error: 'Prize wheel temporarily unavailable' });
+    const today = new Date().toISOString().slice(0, 10);
+    return res.json({
+      canSpin: data?.spin_day !== today,
+      lastPrize: data?.prize || null,
+      nextSpinAt: data?.spin_day === today ? new Date(Date.parse(today + 'T00:00:00Z') + 86400000).toISOString() : null,
+    });
+  });
+
+  app.post('/api/wheel/spin', requireAuth, rateLimit(5, 60_000), async (req: AuthedRequest, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Sign in with your Supabase account to spin.' });
+    const { data, error } = await db.rpc('spin_midnight_wheel');
+    if (error) {
+      if (/already claimed|duplicate key/i.test(error.message)) {
+        return res.status(409).json({ error: 'You have already spun today. Try again tomorrow (UTC).' });
+      }
+      return res.status(503).json({ error: 'Prize wheel temporarily unavailable. No chips were awarded.' });
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || !Number.isFinite(Number(row.prize))) {
+      return res.status(503).json({ error: 'Could not verify prize. Please refresh wallet.' });
+    }
+    // Keep the immediately-visible wallet in sync with the atomic DB award.
+    req.authUser!.wallet.chipBalance = Number(row.chip_balance);
+    return res.json({
+      prize: Number(row.prize),
+      balance: Number(row.chip_balance),
+      nextSpinAt: row.next_spin_at,
+    });
+  });
+
   app.post('/api/wallet/transfer', requireAuth, rateLimit(20, 60_000), (req: AuthedRequest, res) => {
     const { recipientId, amount, idempotencyKey } = req.body || {};
     const result = dataStore.transferChipsBetweenFriends(
@@ -293,6 +390,82 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     if (!result.ok) return res.status(400).json({ error: result.error });
     gameManager.notifyUser(String(recipientId), { type: 'wallet:refresh' });
     return res.json({ ok: true, newBalance: result.senderBalance });
+  });
+
+  // Private club presets are durable, unlike a running hand. Friends
+  // can reopen the same setup after a game night without a paid server.
+  const openedClubPresets = new Map<string, string>();
+  app.get('/api/clubs/presets', requireAuth, async (req: AuthedRequest, res) => {
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Connect a Supabase account to save private tables.' });
+    const { data, error } = await db.from('club_table_presets')
+      .select('id,name,game_type,max_players,small_blind,big_blind,min_buyin,max_buyin,game_speed,created_at')
+      .eq('owner_uid', req.authUser!.profile.id).order('created_at', { ascending: false });
+    if (error) return res.status(503).json({ error: 'Unable to load saved tables' });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ tables: data || [] });
+  });
+
+  app.post('/api/clubs/presets', requireAuth, rateLimit(12, 60_000), async (req: AuthedRequest, res) => {
+    const room = gameManager.rooms.get(String(req.body?.roomId || ''));
+    if (!room || room.hostId !== req.authUser!.profile.id || room.tournamentId) {
+      return res.status(403).json({ error: 'Only the host can save a private table' });
+    }
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Connect a Supabase account to save tables' });
+    const { data, error } = await db.from('club_table_presets').upsert({
+      owner_uid: req.authUser!.profile.id,
+      name: room.name,
+      game_type: room.gameType,
+      max_players: room.maxPlayers,
+      small_blind: room.smallBlind,
+      big_blind: room.bigBlind,
+      min_buyin: room.minBuyin,
+      max_buyin: room.maxBuyin,
+      game_speed: room.gameSpeed,
+    }, { onConflict: 'owner_uid,name' }).select('id,name').single();
+    if (error) return res.status(503).json({ error: 'Could not save table. Check your saved table names.' });
+    return res.status(201).json({ saved: data });
+  });
+
+  app.post('/api/clubs/presets/:id/reopen', requireAuth, rateLimit(12, 60_000), async (req: AuthedRequest, res) => {
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Sign in through Supabase to reopen a saved table' });
+    const { data: preset, error } = await db.from('club_table_presets')
+      .select('*').eq('id', String(req.params.id)).eq('owner_uid', req.authUser!.profile.id).maybeSingle();
+    if (error || !preset) return res.status(404).json({ error: 'Saved table not found' });
+    const existing = openedClubPresets.get(preset.id);
+    const existingRoom = existing && gameManager.rooms.get(existing);
+    if (existingRoom && existingRoom.status !== 'closed') {
+      return res.json({ room: gameManager.summarizeRoom(existingRoom), reopened: true });
+    }
+    const created = gameManager.createRoom({
+      hostId: req.authUser!.profile.id,
+      name: preset.name,
+      gameType: preset.game_type === 'blackjack' ? 'blackjack' : 'holdem',
+      visibility: 'private',
+      maxPlayers: preset.max_players,
+      smallBlind: preset.small_blind,
+      bigBlind: preset.big_blind,
+      minBuyin: preset.min_buyin,
+      maxBuyin: preset.max_buyin,
+      gameSpeed: preset.game_speed,
+    });
+    if (!created.ok || !created.room) return res.status(400).json({ error: created.error || 'Unable to reopen table' });
+    openedClubPresets.set(preset.id, created.room.id);
+    // The host joins using a normal buy-in, not by creating free chips.
+    const joined = gameManager.joinRoom({
+      userId: req.authUser!.profile.id,
+      roomIdOrCode: created.room.id,
+      buyinAmount: preset.min_buyin,
+    });
+    if (!joined.ok || !joined.room) {
+      const newRoom = gameManager.rooms.get(created.room.id);
+      if (newRoom) newRoom.status = 'closed';
+      openedClubPresets.delete(preset.id);
+      return res.status(400).json({ error: joined.error || 'Unable to sit at table' });
+    }
+    return res.status(201).json({ room: joined.room, reopened: true });
   });
 
   // ROOMS (Public & Private Poker / Blackjack)

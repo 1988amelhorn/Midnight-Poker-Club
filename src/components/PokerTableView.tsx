@@ -102,6 +102,14 @@ export const PokerTableView: React.FC<{
   const [shufflingHand, setShufflingHand] = useState(false);
   const [flyingChips, setFlyingChips] = useState<FlyingChip[]>([]);
   const [lastHandSummary, setLastHandSummary] = useState<LastHoldemHandSummary | null>(null);
+  const [lastReplay, setLastReplay] = useState<{
+    handNumber: number;
+    communityCards: Card[];
+    seats: Array<{ userId: string; username: string; revealedCards: Card[] | null; folded: boolean }>;
+    headline: string; subtitle: string;
+  } | null>(null);
+  const [showReplay, setShowReplay] = useState(false);
+  const [replayStep, setReplayStep] = useState(0);
 
   const prevHandRef = useRef(0);
   const prevActionSeqRef = useRef(0);
@@ -117,6 +125,8 @@ export const PokerTableView: React.FC<{
 
   useEffect(() => {
     setLastHandSummary(null);
+    setLastReplay(null);
+    setShowReplay(false);
     lastRecordedWinnerHandRef.current = 0;
     subscribeRoom(roomId);
     return () => subscribeRoom(null);
@@ -266,9 +276,28 @@ export const PokerTableView: React.FC<{
     if (pokerState.handNumber > lastRecordedWinnerHandRef.current) {
       lastRecordedWinnerHandRef.current = pokerState.handNumber;
       const formatted = formatLastHoldemHandResult(pokerState.winners);
-      if (formatted) setLastHandSummary(formatted);
+      if (formatted) {
+        setLastHandSummary(formatted);
+        // Capture only cards revealed by the server's player-specific public
+        // state; never store opponents' unrevealed hole cards for replay.
+        setLastReplay({
+          handNumber: pokerState.handNumber,
+          communityCards: [...pokerState.communityCards],
+          seats: pokerState.seats.map((s) => ({
+            userId: s.userId, username: s.username, folded: s.folded,
+            revealedCards: s.holeCards ? [...s.holeCards] : null,
+          })),
+          headline: formatted.headline, subtitle: formatted.subtitle,
+        });
+      }
     }
   }, [pokerState, showdownReady]);
+
+  useEffect(() => {
+    if (!showReplay || prefersReducedMotion) return;
+    const timer = setInterval(() => setReplayStep((n) => Math.min(5, n + 1)), 620);
+    return () => clearInterval(timer);
+  }, [showReplay, prefersReducedMotion]);
 
   const liveHandSummary = useMemo(() => {
     const visibleBoard = (pokerState?.communityCards ?? []).slice(0, revealedBoardCount);
@@ -1186,6 +1215,12 @@ export const PokerTableView: React.FC<{
                 <p className="text-[10px] sm:text-[11px] font-medium text-emerald-300 truncate">
                   {lastHandSummary.subtitle}
                 </p>
+                {lastReplay && (
+                  <button type="button" onClick={() => { setReplayStep(0); setShowReplay(true); }}
+                    className="self-end text-[10px] font-extrabold text-cyan-300 underline underline-offset-2 mt-0.5">
+                    Replay hand
+                  </button>
+                )}
               </>
             ) : (
               <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">
@@ -1565,6 +1600,51 @@ export const PokerTableView: React.FC<{
                 Submit Report
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {showReplay && lastReplay && (
+        <div role="dialog" aria-modal="true" aria-label="Replay last poker hand"
+          className="fixed inset-0 z-[75] bg-black/85 backdrop-blur-sm p-4 flex items-center justify-center"
+          onClick={() => setShowReplay(false)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="neon-casino-panel w-full max-w-xl rounded-[32px] p-4 sm:p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
+            <div className="flex justify-between items-center gap-3">
+              <div>
+                <h3 className="font-display font-extrabold text-amber-300 text-lg">Hand #{lastReplay.handNumber} Replay</h3>
+                <p className="text-xs text-slate-400">Cards are revealed in order, based on the final public table state.</p>
+              </div>
+              <button type="button" onClick={() => setShowReplay(false)} aria-label="Close replay"
+                className="btn-glossy btn-glossy-dark rounded-full w-9 h-9 grid place-items-center"><X size={17}/></button>
+            </div>
+            <div className="casino-felt rounded-[28px] border-4 border-amber-600/70 p-6 text-center space-y-4">
+              <div className="flex items-center justify-center gap-1.5 min-h-20">
+                {lastReplay.communityCards.map((card, index) => (
+                  <div key={index}>
+                    <PlayingCard card={card} size="sm" faceDown={index >= replayStep}/>
+                  </div>
+                ))}
+              </div>
+              <div className="text-amber-200 font-bold text-sm">{lastReplay.headline}</div>
+              <p className="text-emerald-200 text-xs">{lastReplay.subtitle}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {lastReplay.seats.filter(s=>!s.folded && s.revealedCards?.length).map((s) => (
+                <div key={s.userId} className="input-bubbly p-2.5 rounded-xl">
+                  <p className="text-xs text-slate-200 truncate mb-2">{s.username}</p>
+                  <div className="flex gap-1">
+                    {s.revealedCards?.map((card, index) => <PlayingCard key={index} card={card} size="xs"/>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setReplayStep(0)}
+                className="btn-glossy btn-glossy-blue text-xs font-bold rounded-full px-4 py-2 text-white">Replay again</button>
+              <button type="button" onClick={() => setReplayStep(5)}
+                className="btn-glossy btn-glossy-dark text-xs font-bold rounded-full px-4 py-2 text-white">Show all cards</button>
+            </div>
+            <p className="text-xs text-slate-400">Session replay only. Hidden or folded opponents' cards are never included.</p>
           </div>
         </div>
       )}

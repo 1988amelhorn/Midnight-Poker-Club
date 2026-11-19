@@ -74,6 +74,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       blackjack: BlackjackTableView | null;
       chat: ChatMessageItem[];
     }>(`/api/rooms/${roomId}`);
+    if (activeRoomIdRef.current !== roomId) return;
     setCurrentRoom(data.room);
     setPokerState(data.poker);
     setBlackjackState(data.blackjack);
@@ -110,7 +111,13 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setWsConnected(true);
         setReconnecting(false);
         if (activeRoomIdRef.current) {
-          ws.send(JSON.stringify({ type: 'room:subscribe', roomId: activeRoomIdRef.current }));
+          const roomId = activeRoomIdRef.current;
+          ws.send(JSON.stringify({ type: 'room:subscribe', roomId }));
+          // A phone can suspend the connection while the server continues
+          // dealing. Fetch an authoritative snapshot after re-subscribing.
+          void loadRoomSnapshot(roomId).catch(() => {
+            setActionError('Connection restored, but the table could not sync. Retrying…');
+          });
         }
         if (activeTournIdRef.current) {
           ws.send(JSON.stringify({ type: 'tournament:subscribe', tournamentId: activeTournIdRef.current }));
@@ -166,9 +173,36 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     connect();
     void refreshLobby();
+    const refreshActiveTable = () => {
+      if (!navigator.onLine) return;
+      if (activeRoomIdRef.current) {
+        const roomId = activeRoomIdRef.current;
+        void loadRoomSnapshot(roomId).catch(() => {
+          setActionError('Unable to refresh this table. Your seat will be retried.');
+        });
+      }
+      if (activeTournIdRef.current) {
+        void loadTournamentSnapshot(activeTournIdRef.current).catch(() => {});
+      }
+      if (wsRef.current?.readyState !== WebSocket.OPEN &&
+          wsRef.current?.readyState !== WebSocket.CONNECTING) {
+        // Wake-up reconnect (e.g. after the phone has been locked).
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        connect();
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshActiveTable();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('online', refreshActiveTable);
+    window.addEventListener('focus', refreshActiveTable);
 
     return () => {
       closedIntentionally = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('online', refreshActiveTable);
+      window.removeEventListener('focus', refreshActiveTable);
       if (pingTimer) clearInterval(pingTimer);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (wsRef.current) {
@@ -176,7 +210,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         wsRef.current = null;
       }
     };
-  }, [token, refreshLobby, refreshWallet, refreshSession]);
+  }, [token, refreshLobby, refreshWallet, refreshSession, loadRoomSnapshot, loadTournamentSnapshot]);
 
   const subscribeRoom = useCallback((roomId: string | null) => {
     activeRoomIdRef.current = roomId;

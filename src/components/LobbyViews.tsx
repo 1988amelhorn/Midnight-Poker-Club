@@ -41,13 +41,16 @@ export type AppScreen =
   | 'history'
   | 'wallet'
   | 'daily_bonus'
+  | 'daily_wheel'
   | 'settings'
-  | 'admin';
+  | 'admin'
+  | 'owner';
 
 export const MainLobbyView: React.FC<{
   onNavigate: (screen: AppScreen, param?: string) => void;
   pendingFriendRequests?: number;
-}> = ({ onNavigate, pendingFriendRequests = 0 }) => {
+  isOwner?: boolean;
+}> = ({ onNavigate, pendingFriendRequests = 0, isOwner = false }) => {
   const { user, wallet, activeRoom, stats } = useAuth();
   const { lobbyRooms, lobbyTournaments, refreshLobby } = useGameSocket();
 
@@ -184,6 +187,20 @@ export const MainLobbyView: React.FC<{
 
         <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-fuchsia-500/20 border border-fuchsia-400/60 flex items-center justify-center text-fuchsia-200">
+              <Gift className="w-5 h-5"/>
+            </div>
+            <div>
+              <h3 className="text-sm font-display font-bold text-white">Daily Midnight Prize Wheel</h3>
+              <p className="text-xs text-slate-400">Spin once a day · rare 1,000,000 virtual-chip jackpot</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => onNavigate('daily_wheel')}
+            className="btn-glossy btn-glossy-purple rounded-full px-4 py-2 text-white font-extrabold text-xs shrink-0">Spin</button>
+        </div>
+
+        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.25)]">
               <Coins className="w-5 h-5" />
             </div>
@@ -219,6 +236,20 @@ export const MainLobbyView: React.FC<{
           </button>
         </div>
       </div>
+
+      {isOwner && (
+        <button type="button" onClick={() => onNavigate('owner')}
+          className="neon-casino-panel glass-bubbly rounded-[25px] p-4 w-full flex items-center justify-between gap-3 text-left">
+          <span className="flex items-center gap-3">
+            <Shield className="w-7 h-7 text-amber-300"/>
+            <span>
+              <span className="block font-display font-extrabold text-white text-sm">Club Owner Dashboard</span>
+              <span className="block text-xs text-slate-300">Signups, online activity, and games recorded</span>
+            </span>
+          </span>
+          <span className="btn-glossy btn-glossy-gold rounded-full px-4 py-2 text-slate-950 font-bold text-xs">View</span>
+        </button>
+      )}
 
       {/* Friend requests and direct access to friends from the home screen. */}
       <button
@@ -430,6 +461,34 @@ export const CreatePrivateRoomView: React.FC<{
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('normal');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [savedTables, setSavedTables] = useState<Array<{
+    id: string; name: string; game_type: GameType;
+    max_players: number; min_buyin: number; created_at: string;
+  }>>([]);
+  const [reopening, setReopening] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void apiFetch<{ tables: typeof savedTables }>('/api/clubs/presets')
+      .then((result) => { if (alive) setSavedTables(result.tables || []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const reopenSavedTable = async (id: string) => {
+    setError(null);
+    setReopening(id);
+    try {
+      const result = await apiFetch<{ room: GameRoomSummary }>(
+        `/api/clubs/presets/${encodeURIComponent(id)}/reopen`, { method: 'POST' }
+      );
+      await refreshWallet();
+      onCreated(result.room);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reopen table');
+    } finally {
+      setReopening(null);
+    }
+  };
 
   const maxAllowedBots = Math.max(0, maxPlayers - 1);
   const clampedBots = gameType === 'holdem' ? Math.min(initialBots, maxAllowedBots) : 0;
@@ -480,6 +539,26 @@ export const CreatePrivateRoomView: React.FC<{
           Have a code? Join
         </button>
       </div>
+
+      {savedTables.length > 0 && (
+        <section className="neon-casino-panel glass-bubbly rounded-[26px] p-4 space-y-3">
+          <h2 className="font-display font-bold text-sm text-amber-300">Your Saved Club Tables</h2>
+          <p className="text-xs text-slate-400">Reopen a familiar table with its previous blinds and seat limits. A fresh game starts.</p>
+          {savedTables.map((item) => (
+            <div key={item.id} className="input-bubbly rounded-2xl p-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-white font-bold text-sm truncate">{item.name}</p>
+                <p className="text-xs text-slate-400">{item.game_type === 'holdem' ? 'Poker' : 'Blackjack'} · {item.max_players} seats</p>
+              </div>
+              <button type="button" disabled={reopening !== null}
+                onClick={() => void reopenSavedTable(item.id)}
+                className="btn-glossy btn-glossy-blue text-white font-bold text-xs rounded-full px-4 py-2 shrink-0 disabled:opacity-60">
+                {reopening === item.id ? 'Opening…' : 'Reopen'}
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       {error && <div className="rounded-2xl bg-rose-500/15 border border-rose-500/40 px-4 py-2.5 text-xs text-rose-300">{error}</div>}
 
@@ -834,6 +913,8 @@ export const RoomWaitingLobbyView: React.FC<{
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyBot, setBusyBot] = useState(false);
+  const [savingClub, setSavingClub] = useState(false);
+  const [clubSaved, setClubSaved] = useState(false);
 
   useEffect(() => {
     subscribeRoom(roomId);
@@ -887,6 +968,19 @@ export const RoomWaitingLobbyView: React.FC<{
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to change bot difficulty');
+    }
+  };
+
+  const saveClubTable = async () => {
+    setSavingClub(true);
+    setError(null);
+    try {
+      await apiFetch('/api/clubs/presets', { method: 'POST', body: JSON.stringify({ roomId }) });
+      setClubSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save table');
+    } finally {
+      setSavingClub(false);
     }
   };
 
@@ -1022,6 +1116,15 @@ export const RoomWaitingLobbyView: React.FC<{
           ))}
         </div>
 
+        {isHost && !currentRoom.tournamentId && (
+          <div className="pt-2">
+            <button type="button" onClick={() => void saveClubTable()} disabled={savingClub || clubSaved}
+              className="btn-glossy btn-glossy-purple px-5 py-2.5 rounded-full w-full text-sm font-bold text-white disabled:opacity-65">
+              {clubSaved ? '✓ Saved to My Club Tables' : savingClub ? 'Saving…' : 'Save Table for Future Game Nights'}
+            </button>
+            <p className="text-xs text-slate-400 mt-2 text-center">Save this table's setup so you can reopen it later. Finished hands are not saved yet.</p>
+          </div>
+        )}
         <div className="pt-2 flex gap-2.5">
           <button
             type="button"

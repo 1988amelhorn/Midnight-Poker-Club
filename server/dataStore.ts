@@ -192,13 +192,53 @@ export class ServerDataStore {
       this.userAccessTokens.set(userId, accessToken);
     }
 
+    const db = supabaseAdmin ?? (accessToken ? createSupabaseUserClient(accessToken) : null);
+
+    // Midnight Poker Club's existing Supabase deployment uses the legacy
+    // profiles(uid, chips, avatar_url, ...) schema. Unlike the newer schema,
+    // its wallet lives in profiles, not player_wallets. Read it as the source
+    // of truth for authenticated accounts instead of replacing their real
+    // username and chips with a temporary local profile.
+    if (isSupabaseAuthEnabled && db) {
+      const { data: legacy, error: legacyError } = await db.from('profiles')
+        .select('uid,username,avatar_url,chips,total_hands_played,hands_won,tournament_wins,blackjack_wins,lifetime_winnings,created_at')
+        .eq('uid', userId).maybeSingle();
+      if (!legacyError && legacy) {
+        let record = this.users.get(userId);
+        if (!record) {
+          record = this.createLocalUserRecord({
+            id: userId,
+            email,
+            username: legacy.username,
+            password: null,
+            avatarId: legacy.avatar_url || 'ace-spade',
+            role: 'player',
+            emailVerified,
+          });
+        }
+        record.profile.username = legacy.username;
+        record.profile.avatarId = legacy.avatar_url || 'ace-spade';
+        record.profile.createdAt = legacy.created_at;
+        record.profile.emailVerified = emailVerified;
+        record.wallet.chipBalance = Number(legacy.chips ?? 0);
+        record.wallet.welcomeBonusClaimed = true;
+        record.wallet.lifetimeWon = Number(legacy.lifetime_winnings ?? 0);
+        record.stats.pokerHandsPlayed = Number(legacy.total_hands_played ?? 0);
+        record.stats.pokerHandsWon = Number(legacy.hands_won ?? 0);
+        record.stats.tournamentsWon = Number(legacy.tournament_wins ?? 0);
+        record.stats.blackjackHandsWon = Number(legacy.blackjack_wins ?? 0);
+        record.stats.totalGamesPlayed = record.stats.pokerHandsPlayed;
+        this.usernameToUserId.set(legacy.username.toLowerCase(), userId);
+        this.emailToUserId.set(email.toLowerCase(), userId);
+        return record;
+      }
+    }
+
     const existing = this.users.get(userId);
     if (existing) {
       existing.profile.emailVerified = emailVerified;
       return existing;
     }
-
-    const db = supabaseAdmin ?? (accessToken ? createSupabaseUserClient(accessToken) : null);
 
     if (isSupabaseAuthEnabled && db) {
       let { data: profileRow } = await db
