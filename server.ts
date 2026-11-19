@@ -630,8 +630,41 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
 
   // Public-facing player card: never expose email, roles, wallet tokens, or
   // private account details. Require a session and disable response caching.
-  app.get('/api/players/:id/profile', requireAuth, (req: AuthedRequest, res) => {
+  app.get('/api/players/:id/profile', requireAuth, async (req: AuthedRequest, res) => {
     const playerId = String(req.params.id || '');
+    const db = friendsDb(req);
+    if (db) {
+      const { data: profile, error } = await db.from('profiles')
+        .select('uid,username,avatar_url,created_at,total_hands_played,hands_won,blackjack_wins,tournament_wins')
+        .eq('uid', playerId).maybeSingle();
+      if (error) return friendsError(res, error);
+      if (!profile) return res.status(404).json({ error: 'Player not found' });
+      const friendList = await listPersistentFriends(db, req.authUser!.profile.id, dataStore).catch(() => null);
+      if (!friendList) return res.status(503).json({ error: 'Player profiles temporarily unavailable' });
+      const isFriend = friendList.friends.some((p) => p.userId === playerId);
+      const friendRequestPending = [...friendList.incomingRequests, ...friendList.outgoingRequests].some((r) =>
+        r.senderId === playerId || r.receiverId === playerId
+      );
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json({
+        profile: {
+          id: profile.uid, username: profile.username, avatarId: profile.avatar_url || 'ace-spade',
+          level: 1, xp: 0, bio: '', createdAt: profile.created_at,
+        },
+        stats: {
+          userId: profile.uid,
+          pokerHandsPlayed: profile.total_hands_played || 0,
+          pokerHandsWon: profile.hands_won || 0,
+          blackjackHandsPlayed: 0,
+          blackjackHandsWon: profile.blackjack_wins || 0,
+          blackjackBlackjacks: 0,
+          tournamentsPlayed: 0,
+          tournamentsWon: profile.tournament_wins || 0,
+          totalGamesPlayed: profile.total_hands_played || 0,
+        },
+        isFriend, isSelf: profile.uid === req.authUser!.profile.id, friendRequestPending,
+      });
+    }
     const record = dataStore.users.get(playerId);
     if (!record || record.profile.isSuspended) {
       return res.status(404).json({ error: 'Player not found' });
@@ -699,13 +732,16 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
         // Do not silently claim no users exist when the profiles table is inaccessible.
         if (!found.size) return res.status(503).json({ error: 'Player directory unavailable. Try again shortly.' });
       } else {
+        const friendLinks = await db.from('friends').select('friend_uid').eq('uid', uid);
+        if (friendLinks.error) return res.status(503).json({ error: 'Friends directory temporarily unavailable' });
+        const friendIds = new Set((friendLinks.data || []).map((link) => link.friend_uid));
         for (const p of data || []) {
           found.set(p.uid, {
             userId: p.uid,
             username: p.username,
             avatarId: p.avatar_url || 'ace-spade',
             level: dataStore.users.get(p.uid)?.profile.level || 1,
-            isFriend: dataStore.areFriends(uid, p.uid),
+            isFriend: friendIds.has(p.uid),
           });
         }
       }
