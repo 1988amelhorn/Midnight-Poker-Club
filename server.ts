@@ -392,6 +392,82 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     return res.json({ ok: true, newBalance: result.senderBalance });
   });
 
+  // Private club presets are durable, unlike a running hand. Friends
+  // can reopen the same setup after a game night without a paid server.
+  const openedClubPresets = new Map<string, string>();
+  app.get('/api/clubs/presets', requireAuth, async (req: AuthedRequest, res) => {
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Connect a Supabase account to save private tables.' });
+    const { data, error } = await db.from('club_table_presets')
+      .select('id,name,game_type,max_players,small_blind,big_blind,min_buyin,max_buyin,game_speed,created_at')
+      .eq('owner_uid', req.authUser!.profile.id).order('created_at', { ascending: false });
+    if (error) return res.status(503).json({ error: 'Unable to load saved tables' });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ tables: data || [] });
+  });
+
+  app.post('/api/clubs/presets', requireAuth, rateLimit(12, 60_000), async (req: AuthedRequest, res) => {
+    const room = gameManager.rooms.get(String(req.body?.roomId || ''));
+    if (!room || room.hostId !== req.authUser!.profile.id || room.tournamentId) {
+      return res.status(403).json({ error: 'Only the host can save a private table' });
+    }
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Connect a Supabase account to save tables' });
+    const { data, error } = await db.from('club_table_presets').upsert({
+      owner_uid: req.authUser!.profile.id,
+      name: room.name,
+      game_type: room.gameType,
+      max_players: room.maxPlayers,
+      small_blind: room.smallBlind,
+      big_blind: room.bigBlind,
+      min_buyin: room.minBuyin,
+      max_buyin: room.maxBuyin,
+      game_speed: room.gameSpeed,
+    }, { onConflict: 'owner_uid,name' }).select('id,name').single();
+    if (error) return res.status(503).json({ error: 'Could not save table. Check your saved table names.' });
+    return res.status(201).json({ saved: data });
+  });
+
+  app.post('/api/clubs/presets/:id/reopen', requireAuth, rateLimit(12, 60_000), async (req: AuthedRequest, res) => {
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Sign in through Supabase to reopen a saved table' });
+    const { data: preset, error } = await db.from('club_table_presets')
+      .select('*').eq('id', String(req.params.id)).eq('owner_uid', req.authUser!.profile.id).maybeSingle();
+    if (error || !preset) return res.status(404).json({ error: 'Saved table not found' });
+    const existing = openedClubPresets.get(preset.id);
+    const existingRoom = existing && gameManager.rooms.get(existing);
+    if (existingRoom && existingRoom.status !== 'closed') {
+      return res.json({ room: gameManager.summarizeRoom(existingRoom), reopened: true });
+    }
+    const created = gameManager.createRoom({
+      hostId: req.authUser!.profile.id,
+      name: preset.name,
+      gameType: preset.game_type === 'blackjack' ? 'blackjack' : 'holdem',
+      visibility: 'private',
+      maxPlayers: preset.max_players,
+      smallBlind: preset.small_blind,
+      bigBlind: preset.big_blind,
+      minBuyin: preset.min_buyin,
+      maxBuyin: preset.max_buyin,
+      gameSpeed: preset.game_speed,
+    });
+    if (!created.ok || !created.room) return res.status(400).json({ error: created.error || 'Unable to reopen table' });
+    openedClubPresets.set(preset.id, created.room.id);
+    // The host joins using a normal buy-in, not by creating free chips.
+    const joined = gameManager.joinRoom({
+      userId: req.authUser!.profile.id,
+      roomIdOrCode: created.room.id,
+      buyinAmount: preset.min_buyin,
+    });
+    if (!joined.ok || !joined.room) {
+      const newRoom = gameManager.rooms.get(created.room.id);
+      if (newRoom) newRoom.status = 'closed';
+      openedClubPresets.delete(preset.id);
+      return res.status(400).json({ error: joined.error || 'Unable to sit at table' });
+    }
+    return res.status(201).json({ room: joined.room, reopened: true });
+  });
+
   // ROOMS (Public & Private Poker / Blackjack)
   app.get('/api/rooms', requireAuth, (req: AuthedRequest, res) => {
     const uid = req.authUser!.profile.id;
