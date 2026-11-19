@@ -324,7 +324,7 @@ describe('Auth, Wallet Integrity, Private Rooms & Tournaments', () => {
 
   it('starts an 18-person freeroll across two evenly seated tables with one entry per player', () => {
     const store = new ServerDataStore();
-    const host = store.registerUser('tourn-host', 'strong-password', 'TableDirector');
+    const host = store.registerLocalUser({ email: 'tourn-host@test.com', password: 'strong-password', username: 'TableDirector' });
     expect(host.ok).toBe(true);
     const gm = new GameManager(store, { botThinkDelayRangeMs: [30000, 30000] });
     const created = gm.createTournament({
