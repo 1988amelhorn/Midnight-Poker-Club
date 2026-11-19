@@ -26,6 +26,7 @@ export const TournamentBrowserView: React.FC<{
   onBack: () => void;
 }> = ({ onCreateTournament, onOpenTournament, onJoinRoom, onBack }) => {
   const { lobbyTournaments, refreshLobby } = useGameSocket();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +49,9 @@ export const TournamentBrowserView: React.FC<{
         method: 'POST',
         body: JSON.stringify({ idOrCode: joinCode.trim() }),
       });
-      if (res.tournament.roomId && res.tournament.status === 'in_progress') {
-        onJoinRoom(res.tournament.roomId);
+      const myTable = res.tournament.players.find(p => p.userId === user?.id)?.roomId;
+      if (myTable && res.tournament.status === 'in_progress') {
+        onJoinRoom(myTable);
       } else {
         onOpenTournament(res.tournament.id);
       }
@@ -72,7 +74,7 @@ export const TournamentBrowserView: React.FC<{
           <div className="min-w-0 flex-1">
             <h1 className="text-lg sm:text-2xl font-display font-bold text-white truncate">Tournaments</h1>
             <p className="text-[11px] sm:text-xs text-slate-400 leading-snug line-clamp-2">
-              Midnight Poker Club · Sit &amp; Go Hold&apos;em (2–9 players)
+              Midnight Poker Club · Free multi-table Hold&apos;em tournaments
             </p>
           </div>
         </div>
