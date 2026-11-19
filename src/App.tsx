@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { AuthViews, type AuthScreenMode } from './components/AuthViews.tsx';
 import { OwnerDashboardView } from './components/OwnerDashboardView.tsx';
+import { DailyWheelView } from './components/DailyWheelView.tsx';
 import { FriendSpectatorView } from './components/FriendSpectatorView.tsx';
 import { BlackjackTableView } from './components/BlackjackTableView.tsx';
 import {
@@ -552,6 +553,7 @@ const ClubShell: React.FC = () => {
           <WalletView onBack={() => setScreen('lobby')} onOpenDailyBonus={() => setScreen('daily_bonus')} />
         )}
         {screen === 'daily_bonus' && <DailyBonusView onBack={() => setScreen('lobby')} />}
+        {screen === 'daily_wheel' && <DailyWheelView onBack={() => setScreen('lobby')} />}
         {screen === 'settings' && <SettingsView onBack={() => setScreen('profile')} />}
         {screen === 'admin' && <AdminDashboardView onBack={() => setScreen('lobby')} />}
         {screen === 'owner' && <OwnerDashboardView onBack={() => setScreen('lobby')} />}
