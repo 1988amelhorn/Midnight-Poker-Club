@@ -63,7 +63,7 @@ export const MainLobbyView: React.FC<{
   const tournCount = lobbyTournaments.filter((t) => t.status !== 'completed').length;
 
   return (
-    <div className="casino-screen max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="casino-screen max-w-6xl mx-auto p-4 sm:p-6 space-y-4">
       {/* Resume Active Table Banner */}
       {activeRoom && (
         <div className="rounded-[26px] border-2 border-emerald-400/55 bg-gradient-to-r from-emerald-950/60 via-[#0d1d33]/90 to-cyan-950/50 backdrop-blur-md px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_28px_rgba(16,185,129,0.2)]">
@@ -100,7 +100,7 @@ export const MainLobbyView: React.FC<{
       )}
 
       {/* Midnight Skyline Hero Banner */}
-      <div className="neon-casino-panel relative rounded-[34px] overflow-hidden border-2 border-cyan-400/45 shadow-[0_0_55px_rgba(34,211,238,0.2),0_0_80px_rgba(168,85,247,0.16)] min-h-[210px] sm:min-h-[245px] flex flex-col items-center justify-center text-center p-6">
+      <div className="neon-casino-panel relative rounded-[26px] overflow-hidden border border-cyan-400/35 shadow-[0_0_24px_rgba(34,211,238,0.12)] min-h-[160px] sm:min-h-[210px] flex flex-col items-center justify-center text-center p-6">
         <img
           src="/src/assets/images/neon_hero_skyline_1795020140555.jpg"
           alt="Midnight Poker Club Skyline"
@@ -130,14 +130,14 @@ export const MainLobbyView: React.FC<{
       </div>
 
       {/* Primary 2x2 Neon Bubbly Mode Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <button
           type="button"
           onClick={() => onNavigate('holdem_browser')}
-          className="neon-lobby-tile group relative rounded-[28px] border-2 border-purple-400/75 bg-gradient-to-b from-purple-900/65 via-[#140e31]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(168,85,247,0.28)] hover:border-purple-300 hover:scale-[1.02] transition"
+          className="group relative rounded-2xl border border-purple-400/40 bg-gradient-to-b from-purple-900/65 via-[#140e31]/90 to-[#0a0f22] p-3.5 sm:p-5 text-center shadow-sm hover:border-purple-300 transition-colors"
         >
-          <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-purple-500/20 border border-purple-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(168,85,247,0.4)]">
-            <Spade className="w-8 h-8 text-purple-200" />
+          <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto mb-2 rounded-xl bg-purple-500/20 border border-purple-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(168,85,247,0.4)]">
+            <Spade className="w-6 h-6 sm:w-8 sm:h-8 text-purple-200" />
           </div>
           <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">TEXAS HOLD&apos;EM</h2>
           <p className="text-xs text-purple-200/85 mt-0.5">Play Poker · {holdemCount} Tables</p>
@@ -146,10 +146,10 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('blackjack_browser')}
-          className="neon-lobby-tile group relative rounded-[28px] border-2 border-rose-400/75 bg-gradient-to-b from-rose-900/65 via-[#2a0f20]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(244,63,94,0.28)] hover:border-rose-300 hover:scale-[1.02] transition"
+          className="group relative rounded-2xl border border-rose-400/40 bg-gradient-to-b from-rose-900/65 via-[#2a0f20]/90 to-[#0a0f22] p-3.5 sm:p-5 text-center shadow-sm hover:border-rose-300 transition-colors"
         >
-          <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-rose-500/20 border border-rose-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(244,63,94,0.4)]">
-            <Heart className="w-8 h-8 text-rose-200" />
+          <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto mb-2 rounded-xl bg-rose-500/20 border border-rose-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(244,63,94,0.4)]">
+            <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-rose-200" />
           </div>
           <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">BLACKJACK</h2>
           <p className="text-xs text-rose-200/85 mt-0.5">Play 21 · {bjCount} Tables</p>
@@ -158,10 +158,10 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('create_private')}
-          className="neon-lobby-tile group relative rounded-[28px] border-2 border-sky-400/75 bg-gradient-to-b from-sky-900/65 via-[#0d1f3a]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(56,189,248,0.28)] hover:border-sky-300 hover:scale-[1.02] transition"
+          className="group relative rounded-2xl border border-sky-400/40 bg-gradient-to-b from-sky-900/65 via-[#0d1f3a]/90 to-[#0a0f22] p-3.5 sm:p-5 text-center shadow-sm hover:border-sky-300 transition-colors"
         >
-          <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-sky-500/20 border border-sky-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(56,189,248,0.4)]">
-            <Users className="w-8 h-8 text-sky-200" />
+          <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto mb-2 rounded-xl bg-sky-500/20 border border-sky-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(56,189,248,0.4)]">
+            <Users className="w-6 h-6 sm:w-8 sm:h-8 text-sky-200" />
           </div>
           <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">PRIVATE TABLE</h2>
           <p className="text-xs text-sky-200/85 mt-0.5">Friends &amp; Bots with Code</p>
@@ -170,162 +170,67 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('tournament_browser')}
-          className="neon-lobby-tile group relative rounded-[28px] border-2 border-amber-400/75 bg-gradient-to-b from-amber-900/60 via-[#291b0c]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(245,158,11,0.28)] hover:border-amber-300 hover:scale-[1.02] transition"
+          className="group relative rounded-2xl border border-amber-400/40 bg-gradient-to-b from-amber-900/60 via-[#291b0c]/90 to-[#0a0f22] p-3.5 sm:p-5 text-center shadow-sm hover:border-amber-300 transition-colors"
         >
-          <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(245,158,11,0.4)]">
-            <Trophy className="w-8 h-8 text-amber-200" />
+          <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto mb-2 rounded-xl bg-amber-500/20 border border-amber-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(245,158,11,0.4)]">
+            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-amber-200" />
           </div>
           <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">TOURNAMENT</h2>
           <p className="text-xs text-amber-200/85 mt-0.5">Create · Join by Code · {tournCount} Live</p>
         </button>
       </div>
 
-      {/* Quick Action Strip & Club Hub */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-[0_0_14px_rgba(250,204,21,0.25)]">
-              <Gift className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-display font-bold text-white">Daily 2,000-Chip Bonus</h3>
-              <p className="text-xs text-slate-400">Free virtual refill every 24h</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('daily_bonus')}
-            className="px-4 py-2 rounded-full btn-glossy btn-glossy-gold text-slate-950 font-display font-extrabold text-xs whitespace-nowrap"
-          >
-            Claim
-          </button>
-        </div>
-
-        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-fuchsia-500/20 border border-fuchsia-400/60 flex items-center justify-center text-fuchsia-200">
-              <Gift className="w-5 h-5"/>
-            </div>
-            <div>
-              <h3 className="text-sm font-display font-bold text-white">Daily Midnight Prize Wheel</h3>
-              <p className="text-xs text-slate-400">Spin once a day · rare 1,000,000 virtual-chip jackpot</p>
-            </div>
-          </div>
-          <button type="button" onClick={() => onNavigate('daily_wheel')}
-            className="btn-glossy btn-glossy-purple rounded-full px-4 py-2 text-white font-extrabold text-xs shrink-0">Spin</button>
-        </div>
-
-        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.25)]">
-              <Coins className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-display font-bold text-white">Wallet Balance</h3>
-              <p className="font-mono text-sm font-bold text-amber-300 tabular-nums">
-                {(wallet?.chipBalance ?? 0).toLocaleString()} chips
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('wallet')}
-            className="px-4 py-2 rounded-full btn-glossy btn-glossy-dark text-xs font-semibold text-white"
-          >
-            Wallet
-          </button>
-        </div>
-
-        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-display font-bold text-white">Your Club Record</h3>
-            <p className="text-xs text-slate-400 mt-0.5 font-mono tabular-nums">
-              {stats?.pokerHandsWon ?? 0} Hold&apos;em wins · {stats?.blackjackHandsWon ?? 0} BJ wins
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('leaderboards')}
-            className="px-4 py-2 rounded-full btn-glossy btn-glossy-dark text-xs font-semibold text-cyan-300"
-          >
-            Rankings
-          </button>
-        </div>
-      </div>
-
-      {/* Friend requests and direct access to friends from the home screen. */}
-      <button
-        type="button"
-        onClick={() => onNavigate('friends')}
-        className="w-full rounded-[26px] glass-bubbly border border-cyan-400/30 p-4 flex items-center justify-between gap-3 text-left hover:border-cyan-300/70 transition"
-        aria-label={pendingFriendRequests > 0 ? `Friends: ${pendingFriendRequests} pending requests` : 'Open Friends'}
-      >
-        <div className="flex items-center gap-3">
-          <span className="relative flex items-center justify-center w-12 h-12 shrink-0 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300">
-            <Users className="w-6 h-6" />
-            {pendingFriendRequests > 0 && (
-              <span className="absolute -right-2 -top-2 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[11px] font-extrabold grid place-items-center ring-2 ring-[#0c1329]">
-                {pendingFriendRequests > 99 ? '99+' : pendingFriendRequests}
-              </span>
-            )}
-          </span>
-          <span>
-            <span className="block text-sm font-display font-extrabold text-white">Friends</span>
-            <span className={`block text-xs ${pendingFriendRequests ? 'text-amber-300 font-bold' : 'text-slate-400'}`}>
-              {pendingFriendRequests > 0
-                ? `${pendingFriendRequests} new friend ${pendingFriendRequests === 1 ? 'request' : 'requests'} · Tap to respond`
-                : 'See online friends, join games and send requests'}
+      {/* Compact club dashboard: features remain one tap away, without oversized cards. */}
+      <section className="space-y-3" aria-label="Club dashboard">
+        <div className="grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => onNavigate('daily_bonus')}
+            className="flex items-center gap-2.5 rounded-2xl border border-amber-400/25 bg-[#11172e] p-3 text-left hover:border-amber-400/55 transition-colors min-w-0">
+            <span className="grid place-items-center w-9 h-9 shrink-0 rounded-xl bg-amber-400/10 text-amber-300"><Gift className="w-5 h-5" /></span>
+            <span className="min-w-0">
+              <span className="block text-xs sm:text-sm font-bold text-white">Daily Bonus</span>
+              <span className="block text-[11px] text-amber-200">Claim 2,000 chips</span>
             </span>
-          </span>
+          </button>
+          <button type="button" onClick={() => onNavigate('daily_wheel')}
+            className="flex items-center gap-2.5 rounded-2xl border border-fuchsia-400/25 bg-[#11172e] p-3 text-left hover:border-fuchsia-400/55 transition-colors min-w-0">
+            <span className="grid place-items-center w-9 h-9 shrink-0 rounded-xl bg-fuchsia-400/10 text-fuchsia-300"><Trophy className="w-5 h-5" /></span>
+            <span className="min-w-0">
+              <span className="block text-xs sm:text-sm font-bold text-white">Prize Wheel</span>
+              <span className="block text-[11px] text-fuchsia-200">Free daily spin</span>
+            </span>
+          </button>
         </div>
-        <span className="rounded-full px-3 py-2 bg-cyan-500/15 border border-cyan-400/40 text-xs font-bold text-cyan-200 whitespace-nowrap">
-          {pendingFriendRequests ? 'Review' : 'Open'}
-        </span>
-      </button>
-
-      {/* Live Public Tables Preview */}
-      <div className="neon-casino-panel rounded-[28px] glass-bubbly p-5 space-y-3.5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-display font-bold text-white">Public Tables</h2>
-          <div className="flex gap-3">
-            <button type="button" onClick={() => onNavigate('join_private')} className="text-xs font-semibold text-cyan-300 hover:underline">
-              Join by Code
+        <div className="rounded-2xl border border-slate-700/60 bg-[#0d1529]/90 px-3.5 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Coins className="w-5 h-5 text-amber-300 shrink-0" />
+            <span className="text-xs text-slate-300">Wallet</span>
+            <span className="font-mono font-bold text-sm text-amber-200 tabular-nums">{(wallet?.chipBalance ?? 0).toLocaleString()}</span>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => onNavigate('wallet')}
+              className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">Wallet</button>
+            <button type="button" onClick={() => onNavigate('leaderboards')}
+              className="rounded-full border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-950/50">
+              Rankings
             </button>
-            {user?.role === 'admin' && (
-              <button type="button" onClick={() => onNavigate('admin')} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:underline">
-                <Shield className="w-3.5 h-3.5" /> Admin
-              </button>
-            )}
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          {lobbyRooms.map((r) => (
-            <div key={r.id} className="rounded-3xl border border-cyan-500/25 bg-[#0c1329]/85 p-4 flex flex-col justify-between gap-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-300">
-                    {r.gameType === 'holdem' ? "Texas Hold'em" : 'Blackjack'}
-                  </span>
-                  <span className="font-mono text-xs text-slate-400 tabular-nums">
-                    {r.playerCount}/{r.maxPlayers} seats
-                  </span>
-                </div>
-                <h3 className="text-sm font-display font-bold text-white mt-1 truncate">{r.name}</h3>
-                <p className="text-xs text-slate-400 font-mono mt-0.5">
-                  {r.gameType === 'holdem' ? `Blinds ${r.smallBlind}/${r.bigBlind}` : `Bets ${r.smallBlind}–${r.bigBlind}`} · Buy-in {r.minBuyin}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onNavigate(r.gameType === 'holdem' ? 'holdem_browser' : 'blackjack_browser')}
-                className="w-full py-2.5 rounded-full btn-glossy btn-glossy-blue text-xs font-bold text-white"
-              >
-                View Table
-              </button>
-            </div>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <p className="text-[11px] text-slate-500">{stats?.pokerHandsWon ?? 0} Hold’em wins · {stats?.blackjackHandsWon ?? 0} Blackjack wins</p>
+          <button type="button" onClick={() => onNavigate('friends')}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-cyan-200 hover:text-white">
+            <Users className="w-4 h-4" /> Friends
+            {pendingFriendRequests > 0 && <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-extrabold text-white">{pendingFriendRequests > 99 ? '99+' : pendingFriendRequests} new</span>}
+          </button>
         </div>
-      </div>
+      </section>
+
+      {/* Browse tables in Games rather than duplicating the full table list on Home. */}
+      <button type="button" onClick={() => onNavigate('holdem_browser')}
+        className="w-full rounded-2xl border border-slate-700/55 bg-[#0d1529]/80 px-4 py-3 flex items-center justify-between gap-3 text-left hover:border-cyan-400/50 transition-colors">
+        <span className="inline-flex items-center gap-2.5 text-sm font-semibold text-white"><Spade className="w-4 h-4 text-cyan-300" /> Browse Public Tables</span>
+        <span className="text-xs text-cyan-300">View Games →</span>
+      </button>
     </div>
   );
 };
