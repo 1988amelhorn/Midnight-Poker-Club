@@ -17,6 +17,7 @@ import {
   Wifi,
 } from 'lucide-react';
 import { AuthViews, type AuthScreenMode } from './components/AuthViews.tsx';
+import { FriendSpectatorView } from './components/FriendSpectatorView.tsx';
 import { BlackjackTableView } from './components/BlackjackTableView.tsx';
 import {
   type AppScreen,
@@ -105,6 +106,7 @@ const ClubShell: React.FC = () => {
 
   const [screen, setScreen] = useState<AppScreen>('lobby');
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [spectating, setSpectating] = useState<{roomId: string; friendId: string; username: string} | null>(null);
   const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
   const [tournamentTab, setTournamentTab] = useState<'lobby' | 'info' | 'standings' | 'winner'>('lobby');
   const [prefillJoinCode, setPrefillJoinCode] = useState('');
@@ -114,6 +116,7 @@ const ClubShell: React.FC = () => {
     if (!user) {
       setScreen('lobby');
       setActiveRoomId(null);
+      setSpectating(null);
       setActiveTournamentId(null);
       setPrefillJoinCode('');
     }
@@ -173,6 +176,17 @@ const ClubShell: React.FC = () => {
       <AuthViews
         initialMode={passwordRecoveryActive ? 'new_password' : getInitialAuthMode()}
         onSuccess={() => setScreen('lobby')}
+      />
+    );
+  }
+
+  if (spectating) {
+    return (
+      <FriendSpectatorView
+        roomId={spectating.roomId}
+        friendId={spectating.friendId}
+        friendName={spectating.username}
+        onExit={() => { setSpectating(null); setScreen('friends'); }}
       />
     );
   }
@@ -447,6 +461,7 @@ const ClubShell: React.FC = () => {
           <FriendsView
             onBack={() => setScreen('lobby')}
             onJoinFriendRoom={(rId) => void joinRoomById(rId)}
+            onWatchFriendRoom={(roomId, friendId, username) => setSpectating({ roomId, friendId, username })}
           />
         )}
 
