@@ -26,6 +26,7 @@ export const TournamentBrowserView: React.FC<{
   onBack: () => void;
 }> = ({ onCreateTournament, onOpenTournament, onJoinRoom, onBack }) => {
   const { lobbyTournaments, refreshLobby } = useGameSocket();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +49,9 @@ export const TournamentBrowserView: React.FC<{
         method: 'POST',
         body: JSON.stringify({ idOrCode: joinCode.trim() }),
       });
-      if (res.tournament.roomId && res.tournament.status === 'in_progress') {
-        onJoinRoom(res.tournament.roomId);
+      const myTable = res.tournament.players.find(p => p.userId === user?.id)?.roomId;
+      if (myTable && res.tournament.status === 'in_progress') {
+        onJoinRoom(myTable);
       } else {
         onOpenTournament(res.tournament.id);
       }
@@ -72,7 +74,7 @@ export const TournamentBrowserView: React.FC<{
           <div className="min-w-0 flex-1">
             <h1 className="text-lg sm:text-2xl font-display font-bold text-white truncate">Tournaments</h1>
             <p className="text-[11px] sm:text-xs text-slate-400 leading-snug line-clamp-2">
-              Midnight Poker Club · Sit &amp; Go Hold&apos;em (2–9 players)
+              Midnight Poker Club · Free multi-table Hold&apos;em tournaments
             </p>
           </div>
         </div>
@@ -125,7 +127,7 @@ export const TournamentBrowserView: React.FC<{
           <Trophy className="w-11 h-11 text-amber-400 mx-auto drop-shadow-[0_0_16px_rgba(250,204,21,0.5)]" />
           <h2 className="text-base font-display font-bold text-white">No Active Tournaments Yet</h2>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Create a single-table Hold&apos;em tournament with friends or optional poker bots and compete for the trophy.
+            Create a multi-table Hold&apos;em tournament with friends or optional bots. Free to enter, winner takes the trophy.
           </p>
           <button
             type="button"
@@ -160,7 +162,7 @@ export const TournamentBrowserView: React.FC<{
                       )}
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5 font-mono tabular-nums">
-                      {t.registeredCount}/{t.maxPlayers} players · {t.startingChips.toLocaleString()} chips · {t.startingSb}/{t.startingBb}
+                      {t.registeredCount} registered · {t.startingChips.toLocaleString()} chips · {t.startingSb}/{t.startingBb}
                     </p>
                   </div>
                 </div>
@@ -194,9 +196,8 @@ export const CreateTournamentView: React.FC<{
   const [startingChips, setStartingChips] = useState(5000);
   const [blindIntervalMinutes, setBlindIntervalMinutes] = useState(10);
   const [startingSb, setStartingSb] = useState(25);
-  const [maxPlayers, setMaxPlayers] = useState(8);
   const [anteEnabled, setAnteEnabled] = useState(false);
-  const [entryFee, setEntryFee] = useState(0);
+  const entryFee = 0;
   const [visibility, setVisibility] = useState<RoomVisibility>('public');
   const [allowProbabilityAssist, setAllowProbabilityAssist] = useState(true);
   const [gameSpeed, setGameSpeed] = useState<GameSpeed>('normal');
@@ -205,7 +206,7 @@ export const CreateTournamentView: React.FC<{
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const maxAllowedBots = Math.max(0, maxPlayers - 1);
+  const maxAllowedBots = 8; // Keep bot controls manageable without limiting human registrations.
   const clampedBots = Math.min(initialBots, maxAllowedBots);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,12 +222,12 @@ export const CreateTournamentView: React.FC<{
           blindIntervalMinutes,
           startingSb,
           startingBb: startingSb * 2,
-          maxPlayers,
           anteEnabled,
           entryFee,
           visibility,
           allowProbabilityAssist,
           gameSpeed,
+          startCondition: 'host_or_full',
           initialBots: clampedBots,
           botDifficulty,
         }),
@@ -252,7 +253,7 @@ export const CreateTournamentView: React.FC<{
         </button>
         <div>
           <h1 className="text-xl font-display font-bold text-white">Create Tournament</h1>
-          <p className="text-xs text-slate-400">Single-table No-Limit Texas Hold&apos;em tournament (2–9 seats)</p>
+          <p className="text-xs text-slate-400">Multi-table No-Limit Texas Hold&apos;em · free entry · no rebuys</p>
         </div>
       </div>
 
@@ -312,39 +313,13 @@ export const CreateTournamentView: React.FC<{
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Max Players (Single Table)</label>
-            <select
-              value={maxPlayers}
-              onChange={(e) => {
-                const nextMax = Number(e.target.value);
-                setMaxPlayers(nextMax);
-                setInitialBots((b) => Math.min(b, nextMax - 1));
-              }}
-              className="w-full rounded-2xl input-bubbly px-3.5 py-2.5 text-sm text-white"
-            >
-              <option value={2}>2 Players (Heads-Up)</option>
-              <option value={4}>4 Players</option>
-              <option value={6}>6 Players</option>
-              <option value={8}>8 Players (Default)</option>
-              <option value={9}>9 Players</option>
-            </select>
+          <div className="rounded-2xl border border-cyan-400/30 bg-cyan-950/20 px-4 py-3 text-sm text-cyan-100 sm:col-span-2">
+            <div className="font-display font-bold text-white">Open Registration · No Player Count to Choose</div>
+            <p className="mt-1 text-xs text-slate-300">Your tournament gets a unique 6-character invite code. Friends can register until you launch it, and tables are created automatically with up to 9 players each.</p>
           </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Virtual Chip Entry Fee</label>
-            <select
-              value={entryFee}
-              onChange={(e) => setEntryFee(Number(e.target.value))}
-              className="w-full rounded-2xl input-bubbly px-3.5 py-2.5 text-sm text-white"
-            >
-              <option value={0}>Free Roll (0 chips)</option>
-              <option value={100}>100 chips</option>
-              <option value={500}>500 chips</option>
-              <option value={1000}>1,000 chips</option>
-            </select>
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-3 text-xs text-emerald-200">
+            Free tournament · one starting stack per player · no rebuys or late registration.
           </div>
-
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">Visibility</label>
             <select
@@ -509,7 +484,10 @@ export const TournamentDetailView: React.FC<{
   }
 
   const isCreator = t.creatorId === user?.id;
-  const isRegistered = t.players.some((p) => p.userId === user?.id);
+  const myEntry = t.players.find((p) => p.userId === user?.id);
+  const isRegistered = Boolean(myEntry);
+  const assignedRoomId = myEntry?.roomId ?? null;
+  const topThree = [...t.players].filter(p => p.status === 'active' || p.status === 'winner').sort((a,b) => b.tournamentChips - a.tournamentChips).slice(0,3);
   const currentLvl = t.blindSchedule[t.currentLevel - 1] ?? t.blindSchedule[0];
   const nextLvl = t.blindSchedule[t.currentLevel] ?? null;
 
@@ -576,9 +554,8 @@ export const TournamentDetailView: React.FC<{
       const res = await apiFetch<{ tournament: TournamentSummary }>(`/api/tournaments/${t.id}/start`, {
         method: 'POST',
       });
-      if (res.tournament.roomId) {
-        onEnterTable(res.tournament.roomId);
-      }
+      const ownTable = res.tournament.players.find(p => p.userId === user?.id)?.roomId;
+      if (ownTable) onEnterTable(ownTable);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to start');
     }
@@ -598,19 +575,19 @@ export const TournamentDetailView: React.FC<{
           <div className="min-w-0 flex-1">
             <h1 className="text-lg sm:text-xl font-display font-bold text-white truncate">{t.name}</h1>
             <p className="text-[11px] sm:text-xs text-slate-400 truncate">
-              Code <span className="font-mono text-cyan-300">{t.code}</span> · {t.registeredCount}/{t.maxPlayers} Players · {t.status.replace('_', ' ')}
+              Code <span className="font-mono text-cyan-300">{t.code}</span> · {t.registeredCount} Players · {t.status.replace('_', ' ')}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {t.status === 'in_progress' && t.roomId && isRegistered && (
+          {t.status === 'in_progress' && assignedRoomId && myEntry?.status === 'active' && (
             <button
               type="button"
-              onClick={() => onEnterTable(t.roomId!)}
+              onClick={() => onEnterTable(assignedRoomId!)}
               className="rounded-full btn-glossy btn-glossy-green px-5 py-2 text-xs font-display font-extrabold text-slate-950"
             >
-              Open Live Table
+              Open My Table
             </button>
           )}
           <button
@@ -626,6 +603,33 @@ export const TournamentDetailView: React.FC<{
           </button>
         </div>
       </div>
+
+      {t.status !== 'registering' && (
+        <div className="rounded-[26px] glass-bubbly p-4 sm:p-5 space-y-3">
+          <h2 className="font-display font-bold text-amber-200">🏆 Live Chip Leaders</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {topThree.map((p, i) => (
+              <div key={p.userId} className="rounded-2xl bg-slate-900/80 border border-amber-300/20 p-3">
+                <div className="text-xs text-amber-300">{['🥇 1st','🥈 2nd','🥉 3rd'][i]}</div>
+                <div className="font-semibold text-white truncate">{p.username}</div>
+                <div className="font-mono text-cyan-300">{p.tournamentChips.toLocaleString()} chips</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400">Players remaining: {t.players.filter(p => p.status === 'active' || p.status === 'winner').length} / {t.registeredCount}</p>
+          <div className="flex flex-wrap gap-2">
+            {t.tables.filter(table => table.playerCount > 0).map((table) => (
+              <button key={table.roomId} type="button" onClick={() => onEnterTable(table.roomId)}
+                className="rounded-full btn-glossy btn-glossy-dark px-4 py-2 text-xs text-white">
+                {table.name} · {table.playerCount} players {assignedRoomId === table.roomId ? '· Your table' : '· Watch'}
+              </button>
+            ))}
+          </div>
+          {myEntry?.status === 'eliminated' && (
+            <p className="text-sm text-amber-200">You finished #{myEntry.placement}. You can keep watching the remaining tables, but you cannot re-enter.</p>
+          )}
+        </div>
+      )}
 
       {/* Sub-navigation Tabs */}
       <div className="flex items-center gap-1.5 p-1.5 rounded-full glass-bubbly overflow-x-auto">
@@ -665,7 +669,7 @@ export const TournamentDetailView: React.FC<{
                   onClick={handleJoin}
                   className="px-5 py-2.5 rounded-full btn-glossy btn-glossy-blue text-white font-display font-bold text-xs"
                 >
-                  Register ({t.entryFee > 0 ? `${t.entryFee} chips` : 'Free'})
+                  Register · Free
                 </button>
               )}
               {t.status === 'registering' && isRegistered && !isCreator && (
@@ -694,7 +698,7 @@ export const TournamentDetailView: React.FC<{
                   onClick={handleStart}
                   className="px-5 py-2.5 rounded-full btn-glossy btn-glossy-green text-slate-950 font-display font-extrabold text-xs disabled:opacity-40"
                 >
-                  Start Tournament ({t.registeredCount}/{t.maxPlayers})
+                  Launch Tournament ({t.registeredCount} players)
                 </button>
               )}
             </div>
@@ -702,7 +706,7 @@ export const TournamentDetailView: React.FC<{
 
           <div className="space-y-2">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Registered Players ({t.registeredCount}/{t.maxPlayers})
+              Registered Players ({t.registeredCount})
             </h3>
             {t.players.map((p) => (
               <div key={p.userId} className="flex items-center justify-between gap-2 rounded-2xl input-bubbly px-4 py-2.5">
@@ -732,24 +736,11 @@ export const TournamentDetailView: React.FC<{
                 </div>
               </div>
             ))}
-            {Array.from({ length: Math.max(0, t.maxPlayers - t.registeredCount) }).map((_, i) => (
-              <div key={i} className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-700/80 bg-slate-900/25 px-4 py-2.5 text-xs text-slate-500">
-                <span className="inline-flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  <span>Waiting for player...</span>
-                </span>
-                {t.status === 'registering' && isCreator && (
-                  <button
-                    type="button"
-                    disabled={busyBot}
-                    onClick={() => void handleAddBot()}
-                    className="inline-flex items-center gap-1 rounded-full bg-cyan-500/15 border border-cyan-400/40 px-2.5 py-1 text-[11px] font-bold text-cyan-200 hover:bg-cyan-500/25"
-                  >
-                    <Plus className="w-3 h-3" /> Add Bot
-                  </button>
-                )}
-              </div>
-            ))}
+            {t.status === 'registering' && (
+              <p className="rounded-2xl border border-dashed border-cyan-500/35 bg-cyan-950/15 px-4 py-3 text-xs text-cyan-200">
+                Registration is open. Share code <span className="font-mono font-bold">{t.code}</span> with more players, then launch when everyone is ready.
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -850,7 +841,7 @@ export const TournamentDetailView: React.FC<{
         <div className="rounded-[28px] glass-bubbly overflow-hidden">
           <div className="p-4 border-b border-slate-800 flex items-center justify-between">
             <h2 className="text-base font-display font-bold text-white">
-              Players ({t.registeredCount} / {t.maxPlayers})
+              Players ({t.registeredCount})
             </h2>
             <span className="text-xs text-slate-400 font-mono">{t.totalHandsPlayed} hands played</span>
           </div>

@@ -378,6 +378,8 @@ export interface TournamentSummary {
   currentLevel: number;
   levelEndsAt: string | null;
   roomId: string | null;
+  roomIds: string[];
+  tables: Array<{roomId: string; name: string; playerCount: number}>;
   winnerId: string | null;
   winnerUsername: string | null;
   totalHandsPlayed: number;
@@ -386,6 +388,7 @@ export interface TournamentSummary {
     username: string;
     avatarId: string;
     tournamentChips: number;
+    roomId: string | null;
     status: 'registered' | 'active' | 'eliminated' | 'winner';
     placement: number | null;
     eliminations: number;

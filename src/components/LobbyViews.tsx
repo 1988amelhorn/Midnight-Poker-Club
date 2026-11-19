@@ -175,8 +175,8 @@ export const MainLobbyView: React.FC<{
           <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(245,158,11,0.4)]">
             <Trophy className="w-8 h-8 text-amber-200" />
           </div>
-          <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">TOURNAMENTS</h2>
-          <p className="text-xs text-amber-200/85 mt-0.5">Live Sit &amp; Go · {tournCount} Events</p>
+          <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">TOURNAMENT</h2>
+          <p className="text-xs text-amber-200/85 mt-0.5">Create · Join by Code · {tournCount} Live</p>
         </button>
       </div>
 

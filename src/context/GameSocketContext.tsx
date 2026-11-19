@@ -141,6 +141,13 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               if (prev.some((m) => m.id === msg.message.id)) return prev;
               return [...prev.slice(-80), msg.message];
             });
+          } else if (msg.type === 'tournament:table_move' && msg.roomId) {
+            // Follow an automatic seat transfer only if this client is viewing a table.
+            if (activeRoomIdRef.current) {
+              activeRoomIdRef.current = msg.roomId;
+              ws.send(JSON.stringify({ type: 'room:subscribe', roomId: msg.roomId }));
+              void loadRoomSnapshot(msg.roomId).catch(() => setActionError('Open your tournament to find your new table.'));
+            }
           } else if (msg.type === 'tournament:state' && msg.tournament) {
             setCurrentTournament(msg.tournament);
           } else if (msg.type === 'lobby:update') {

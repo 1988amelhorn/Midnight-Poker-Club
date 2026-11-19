@@ -104,7 +104,7 @@ function getInitialAuthMode(): AuthScreenMode {
 
 const ClubShell: React.FC = () => {
   const { loading, user, wallet, activeRoom, passwordRecoveryActive, refreshWallet, refreshSession } = useAuth();
-  const { reconnecting, friendRequestRefreshVersion } = useGameSocket();
+  const { reconnecting, friendRequestRefreshVersion, currentTournament } = useGameSocket();
 
   const [screen, setScreen] = useState<AppScreen>('lobby');
   const [isOwner, setIsOwner] = useState(false);
@@ -115,6 +115,18 @@ const ClubShell: React.FC = () => {
   const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
   const [tournamentTab, setTournamentTab] = useState<'lobby' | 'info' | 'standings' | 'winner'>('lobby');
   const [prefillJoinCode, setPrefillJoinCode] = useState('');
+
+  // When the tournament director transfers our seat, switch the live view
+  // to the assigned table. Never redirect a spectator who is only watching.
+  useEffect(() => {
+    if (screen !== 'live_poker' || !activeRoomId || !user || !currentTournament) return;
+    const mine = currentTournament.players.find(player => player.userId === user.id);
+    if (mine?.status === 'active' && mine.roomId && mine.roomId !== activeRoomId &&
+        currentTournament.roomIds.includes(activeRoomId)) {
+      setActiveRoomId(mine.roomId);
+    }
+  }, [screen, activeRoomId, user?.id, currentTournament]);
+
 
   useEffect(() => {
     if (!user) { setIsOwner(false); return; }
@@ -296,7 +308,7 @@ const ClubShell: React.FC = () => {
   const navItems: Array<{ id: AppScreen; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'lobby', label: 'Home', icon: Home },
     { id: 'holdem_browser', label: 'Games', icon: Spade },
-    { id: 'tournament_browser', label: 'Events', icon: Trophy },
+    { id: 'tournament_browser', label: 'Tournament', icon: Trophy },
     { id: 'friends', label: 'Friends', icon: Users },
     { id: 'inbox', label: 'Inbox', icon: Mail },
     { id: 'profile', label: 'Profile', icon: User },
@@ -564,14 +576,15 @@ const ClubShell: React.FC = () => {
         Midnight Poker Club · Where Legends Go All In. · Virtual chips for social entertainment only · No monetary value or real-money wagering
       </footer>
 
-      {/* Mobile Bottom Tab Bar (Home, Games, Friends, Inbox, Profile) */}
+      {/* Mobile Bottom Tab Bar (Home, Games, Tournament, Friends, Inbox, Profile) */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-sky-400/20 bg-[#080d1e]/95 backdrop-blur-xl px-2 py-1.5 grid grid-cols-5 gap-1 shadow-[0_-8px_24px_rgba(0,0,0,0.6)]"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-sky-400/20 bg-[#080d1e]/95 backdrop-blur-xl px-2 py-1.5 grid grid-cols-6 gap-0.5 shadow-[0_-8px_24px_rgba(0,0,0,0.6)]"
       >
         {[
           { id: 'lobby' as AppScreen, label: 'Home', icon: Home, active: screen === 'lobby' },
-          { id: 'holdem_browser' as AppScreen, label: 'Games', icon: Spade, active: isGamesActive || isEventsActive },
+          { id: 'holdem_browser' as AppScreen, label: 'Games', icon: Spade, active: isGamesActive },
+          { id: 'tournament_browser' as AppScreen, label: 'Tournament', icon: Trophy, active: isEventsActive },
           { id: 'friends' as AppScreen, label: 'Friends', icon: Users, active: screen === 'friends' },
           { id: 'inbox' as AppScreen, label: 'Inbox', icon: Mail, active: screen === 'inbox' },
           { id: 'profile' as AppScreen, label: 'Profile', icon: User, active: screen === 'profile' || screen === 'settings' || screen === 'wallet' },
@@ -580,7 +593,7 @@ const ClubShell: React.FC = () => {
             key={tab.id}
             type="button"
             onClick={() => setScreen(tab.id)}
-            className={`flex flex-col items-center justify-center py-1.5 rounded-full text-[11px] font-semibold transition min-h-[44px] ${
+            className={`flex flex-col items-center justify-center py-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold transition min-h-[44px] ${
               tab.active
                 ? 'btn-glossy btn-glossy-blue text-white shadow-[0_0_16px_rgba(56,189,248,0.45)]'
                 : 'text-slate-400 hover:text-white'
