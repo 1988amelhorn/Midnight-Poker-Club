@@ -139,6 +139,22 @@ const ClubShell: React.FC = () => {
     };
   }, [user?.id, friendRequestRefreshVersion, friendRequestRefresh, screen]);
 
+  // Restore the same verified seat after a phone restart or PWA relaunch.
+  // The stored room ID is only a hint: never create a phantom seat locally.
+  useEffect(() => {
+    if (!user || !activeRoom || activeRoom.status === 'closed' || activeRoomId) return;
+    try {
+      const saved = localStorage.getItem(`midnight:last-table:${user.id}`);
+      if (saved !== activeRoom.id) return;
+      setActiveRoomId(activeRoom.id);
+      setScreen(activeRoom.status === 'waiting'
+        ? 'room_waiting'
+        : activeRoom.gameType === 'blackjack' ? 'live_blackjack' : 'live_poker');
+    } catch {
+      // Private browsing can disable storage. Resume is still available in lobby.
+    }
+  }, [user?.id, activeRoom?.id, activeRoom?.status, activeRoom?.gameType, activeRoomId]);
+
   // Reset navigation cleanly on logout
   useEffect(() => {
     if (!user) {
@@ -151,6 +167,9 @@ const ClubShell: React.FC = () => {
   }, [user]);
 
   const enterRoom = (room: GameRoomSummary) => {
+    if (user) {
+      try { localStorage.setItem(`midnight:last-table:${user.id}`, room.id); } catch {}
+    }
     setActiveRoomId(room.id);
     if (room.status === 'waiting') {
       setScreen('room_waiting');
@@ -162,6 +181,9 @@ const ClubShell: React.FC = () => {
   const handleNavigate = (nextScreen: AppScreen, param?: string) => {
     if ((nextScreen === 'live_poker' || nextScreen === 'live_blackjack' || nextScreen === 'room_waiting') && param) {
       setActiveRoomId(param);
+      if (user) {
+        try { localStorage.setItem(`midnight:last-table:${user.id}`, param); } catch {}
+      }
     }
     if (nextScreen === 'tournament_detail' && param) {
       setActiveTournamentId(param);
@@ -228,6 +250,9 @@ const ClubShell: React.FC = () => {
           <PokerTableView
             roomId={activeRoomId}
             onExit={() => {
+              if (user) {
+                try { localStorage.removeItem(`midnight:last-table:${user.id}`); } catch {}
+              }
               setActiveRoomId(null);
               void refreshSession();
               setScreen('lobby');
@@ -242,6 +267,9 @@ const ClubShell: React.FC = () => {
           <BlackjackTableView
             roomId={activeRoomId}
             onExit={() => {
+              if (user) {
+                try { localStorage.removeItem(`midnight:last-table:${user.id}`); } catch {}
+              }
               setActiveRoomId(null);
               void refreshSession();
               setScreen('lobby');
@@ -428,6 +456,9 @@ const ClubShell: React.FC = () => {
               setScreen(room.gameType === 'blackjack' ? 'live_blackjack' : 'live_poker');
             }}
             onLeave={() => {
+              if (user) {
+                try { localStorage.removeItem(`midnight:last-table:${user.id}`); } catch {}
+              }
               setActiveRoomId(null);
               void refreshSession();
               setScreen('lobby');
