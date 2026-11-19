@@ -403,6 +403,10 @@ export interface FriendItem {
   online: boolean;
   currentRoomId?: string | null;
   currentRoomName?: string | null;
+  canJoin?: boolean;
+  canWatch?: boolean;
+  roomPlayerCount?: number;
+  roomMaxPlayers?: number;
 }
 
 export interface FriendRequestItem {
