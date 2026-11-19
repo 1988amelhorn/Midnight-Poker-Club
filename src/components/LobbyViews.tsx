@@ -83,6 +83,22 @@ export const MainLobbyView: React.FC<{
         </div>
       )}
 
+      {/* Verified owner shortcut is intentionally ABOVE the hero: on mobile it
+          must not be hidden below the long lobby tiles and daily bonuses. */}
+      {isOwner && (
+        <button type="button" onClick={() => onNavigate('owner')}
+          className="neon-casino-panel glass-bubbly rounded-[25px] p-3.5 sm:p-4 w-full flex items-center justify-between gap-3 text-left border-2 border-amber-400/60 shadow-[0_0_22px_rgba(251,191,36,0.18)]">
+          <span className="flex items-center gap-3">
+            <Shield className="w-7 h-7 text-amber-300 shrink-0"/>
+            <span>
+              <span className="block font-display font-extrabold text-white text-sm">Owner Dashboard</span>
+              <span className="block text-xs text-slate-300">See signups, games &amp; online players</span>
+            </span>
+          </span>
+          <span className="btn-glossy btn-glossy-gold rounded-full px-4 py-2 text-slate-950 font-bold text-xs">Open</span>
+        </button>
+      )}
+
       {/* Midnight Skyline Hero Banner */}
       <div className="neon-casino-panel relative rounded-[34px] overflow-hidden border-2 border-cyan-400/45 shadow-[0_0_55px_rgba(34,211,238,0.2),0_0_80px_rgba(168,85,247,0.16)] min-h-[210px] sm:min-h-[245px] flex flex-col items-center justify-center text-center p-6">
         <img
@@ -236,20 +252,6 @@ export const MainLobbyView: React.FC<{
           </button>
         </div>
       </div>
-
-      {isOwner && (
-        <button type="button" onClick={() => onNavigate('owner')}
-          className="neon-casino-panel glass-bubbly rounded-[25px] p-4 w-full flex items-center justify-between gap-3 text-left">
-          <span className="flex items-center gap-3">
-            <Shield className="w-7 h-7 text-amber-300"/>
-            <span>
-              <span className="block font-display font-extrabold text-white text-sm">Club Owner Dashboard</span>
-              <span className="block text-xs text-slate-300">Signups, online activity, and games recorded</span>
-            </span>
-          </span>
-          <span className="btn-glossy btn-glossy-gold rounded-full px-4 py-2 text-slate-950 font-bold text-xs">View</span>
-        </button>
-      )}
 
       {/* Friend requests and direct access to friends from the home screen. */}
       <button
