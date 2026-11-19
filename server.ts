@@ -370,6 +370,8 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     if (!row || !Number.isFinite(Number(row.prize))) {
       return res.status(503).json({ error: 'Could not verify prize. Please refresh wallet.' });
     }
+    // Keep the immediately-visible wallet in sync with the atomic DB award.
+    req.authUser!.wallet.chipBalance = Number(row.chip_balance);
     return res.json({
       prize: Number(row.prize),
       balance: Number(row.chip_balance),
