@@ -1379,7 +1379,10 @@ export class GameManager {
   public registerWsClient(ws: WebSocket, userId: string): WsClientMeta {
     const meta: WsClientMeta = { ws, userId, roomId: null, tournamentId: null };
     this.clients.add(meta);
-    this.dataStore.onlineUsers.set(userId, { lastPing: Date.now() });
+    this.dataStore.onlineUsers.set(userId, {
+      ...(this.dataStore.onlineUsers.get(userId) ?? {}),
+      lastPing: Date.now(),
+    });
     return meta;
   }
 
