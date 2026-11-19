@@ -16,6 +16,7 @@ import {
   isSupabaseConfigured,
   publicSupabaseConfig,
   supabaseAdmin,
+  createSupabaseUserClient,
 } from './server/supabaseAdmin.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -624,21 +625,58 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     });
   });
 
-  app.get('/api/players/search', requireAuth, (req: AuthedRequest, res) => {
-    const q = String(req.query.q || '').trim().toLowerCase();
+  // Search real registered accounts, not just the in-memory users who have
+  // happened to hit this particular serverless instance.
+  app.get('/api/players/search', requireAuth, rateLimit(30, 60_000), async (req: AuthedRequest, res) => {
+    const q = String(req.query.q || '').trim().slice(0, 60);
     const uid = req.authUser!.profile.id;
+    res.setHeader('Cache-Control', 'no-store');
     if (q.length < 2) return res.json({ players: [] });
+
+    const found = new Map<string, {
+      userId: string; username: string; avatarId: string; level: number; isFriend: boolean;
+    }>();
     const matches = Array.from(dataStore.users.values())
-      .filter((u) => u.profile.id !== uid && !u.profile.isSuspended && u.profile.username.toLowerCase().includes(q))
-      .slice(0, 20)
-      .map((u) => ({
+      .filter((u) => u.profile.id !== uid && !u.profile.isSuspended &&
+        u.profile.username.toLowerCase().includes(q.toLowerCase()))
+      .slice(0, 20);
+    for (const u of matches) {
+      found.set(u.profile.id, {
         userId: u.profile.id,
         username: u.profile.username,
         avatarId: u.profile.avatarId,
         level: u.profile.level,
         isFriend: dataStore.areFriends(uid, u.profile.id),
-      }));
-    return res.json({ players: matches });
+      });
+    }
+
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    const db = supabaseAdmin ?? createSupabaseUserClient(token);
+    if (db) {
+      // Escape ilike wildcards so searches are literal usernames, not patterns.
+      const literal = q.replace(/[\\%_]/g, (char) => '\\' + char);
+      const { data, error } = await db
+        .from('profiles')
+        .select('id, username, avatar_id, level')
+        .ilike('username', `%${literal}%`)
+        .neq('id', uid)
+        .limit(20);
+      if (error) {
+        // Do not silently claim no users exist when the profiles table is inaccessible.
+        if (!found.size) return res.status(503).json({ error: 'Player directory unavailable. Try again shortly.' });
+      } else {
+        for (const p of data || []) {
+          found.set(p.id, {
+            userId: p.id,
+            username: p.username,
+            avatarId: p.avatar_id || 'ace-spade',
+            level: p.level || 1,
+            isFriend: dataStore.areFriends(uid, p.id),
+          });
+        }
+      }
+    }
+    return res.json({ players: Array.from(found.values()).slice(0, 20) });
   });
 
   app.post('/api/friends/request', requireAuth, (req: AuthedRequest, res) => {
