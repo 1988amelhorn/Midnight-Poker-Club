@@ -27,6 +27,28 @@ export interface AuthedRequest extends Request {
 
 export function createNeonPokerServer(options?: GameManagerOptions) {
   const app = express();
+  // Allow only configured browser frontend origins when hosting the API
+  // separately. Same-origin requests work without any configuration.
+  const allowedOrigins = new Set(
+    [process.env.FRONTEND_ORIGIN, process.env.APP_URL]
+      .filter(Boolean)
+      .flatMap((value) => value!.split(','))
+      .map((value) => value.trim().replace(/\/+$/, ''))
+      .filter(Boolean)
+  );
+  app.use('/api', (req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    }
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(origin && !allowedOrigins.has(origin) ? 403 : 204);
+    }
+    next();
+  });
   app.use(express.json({ limit: '1mb' }));
 
   const dataStore = new ServerDataStore();
@@ -709,7 +731,26 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
   });
 
   const httpServer = http.createServer(app);
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const wss = new WebSocketServer({
+    server: httpServer,
+    path: '/ws',
+    verifyClient: ({ origin, req }, callback) => {
+      // No Origin header: non-browser clients, validated separately by token.
+      // Browser origins must be same-origin or explicitly allowlisted.
+      if (!origin || allowedOrigins.has(origin)) return callback(true);
+      try {
+        const parsed = new URL(origin);
+        if (parsed.host === req.headers.host) return callback(true);
+        const hostname = parsed.hostname.toLowerCase();
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+          return callback(true);
+        }
+      } catch {
+        // Invalid origin.
+      }
+      callback(false, 403, 'Origin not allowed');
+    },
+  });
 
   wss.on('connection', (ws, req) => {
     const url = new URL(req.url || '/ws', 'http://localhost');
