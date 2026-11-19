@@ -51,8 +51,32 @@ describe('accepted-friend read-only spectating', () => {
       expect(watch.json.poker?.seats.every((s: any) => s.holeCards === null)).toBe(true);
       const guestSession = await req('/api/auth/session', 'GET', guest.token);
       expect(guestSession.json.activeRoom).toBeNull();
+
+      // Joining a private table through an accepted friend works without
+      // sharing the password and debits a normal buy-in only after joining.
+      const friendJoin = await req('/api/rooms/join', 'POST', guest.token, {
+        roomIdOrCode: roomId, friendId: host.user.id, buyinAmount: 500,
+      });
+      expect(friendJoin.status).toBe(200);
+      expect(friendJoin.json.room.playerCount).toBe(3); // host, bot, friend
+      await req(`/api/rooms/${roomId}/leave`, 'POST', guest.token);
       await req(`/api/rooms/${roomId}/leave`, 'POST', host.token);
       expect((await req(url, 'GET', guest.token)).status).toBe(403);
+
+      // A friends table remains reopenable after the last human leaves.
+      const friendsTables = await req('/api/friends/tables', 'GET', guest.token);
+      expect(friendsTables.status).toBe(200);
+      const hostListing = friendsTables.json.friends.find((x: any) => x.userId === host.user.id);
+      expect(hostListing.currentRoomId).toBe(roomId);
+      expect(hostListing.canJoin).toBe(true);
+      const hostReturn = await req('/api/rooms/join', 'POST', host.token, {
+        roomIdOrCode: roomId, buyinAmount: 500,
+      });
+      expect(hostReturn.status).toBe(200);
+      const guestReturn = await req('/api/rooms/join', 'POST', guest.token, {
+        roomIdOrCode: roomId, friendId: host.user.id, buyinAmount: 500,
+      });
+      expect(guestReturn.status).toBe(200);
     } finally {
       await new Promise<void>((resolve, reject) => httpServer.close(error => error ? reject(error) : resolve()));
     }
