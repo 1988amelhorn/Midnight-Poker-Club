@@ -1,6 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { apiFetch, getStoredToken, setStoredToken } from '../lib/api.ts';
-import { fetchPublicConfig, getSupabaseClient } from '../lib/supabase.ts';
+import {
+  ApiError,
+  apiFetch,
+  getStoredToken,
+  isAuthError,
+  setStoredToken,
+} from '../lib/api.ts';
+import { fetchPublicConfig, getSupabaseAccessToken, getSupabaseClient } from '../lib/supabase.ts';
 import type {
   AchievementBadge,
   GameRoomSummary,
@@ -45,6 +51,8 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [supabaseConfigured, setSupabaseConfigured] = useState(false);
@@ -74,6 +82,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const clearLocalSession = useCallback(() => {
+    setStoredToken(null);
+    setToken(null);
+    setUser(null);
+    setWallet(null);
+    setStats(null);
+    setAchievements([]);
+    setActiveRoom(null);
+  }, []);
+
   const loadSessionWithToken = useCallback(async (tok: string) => {
     const data = await apiFetch<{
       user: UserProfile;
@@ -90,27 +108,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     applySoundPrefs(data.user);
   }, []);
 
+  /**
+   * Loads the session, retrying transient failures (server restart, cold start,
+   * network blip) so a signed-in player is never dropped back to the login screen
+   * because of one failed request. A real 401/403 still propagates.
+   */
+  const loadSessionResilient = useCallback(
+    async (tok: string) => {
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await loadSessionWithToken(tok);
+          return;
+        } catch (error) {
+          lastError = error;
+          if (isAuthError(error)) throw error;
+          if (attempt < 2) await sleep(500 * (attempt + 1));
+        }
+      }
+      throw lastError;
+    },
+    [loadSessionWithToken]
+  );
+
+  /** Freshest token available: the Supabase session when connected, otherwise the stored one. */
+  const resolveActiveToken = useCallback(async (): Promise<string | null> => {
+    const supabaseToken = await getSupabaseAccessToken();
+    return supabaseToken || getStoredToken();
+  }, []);
+
   const refreshSession = useCallback(async () => {
-    const tok = getStoredToken();
+    const tok = await resolveActiveToken();
     if (!tok) {
-      setUser(null);
-      setWallet(null);
-      setStats(null);
-      setActiveRoom(null);
+      clearLocalSession();
       return;
     }
     try {
-      await loadSessionWithToken(tok);
-    } catch {
-      setStoredToken(null);
-      setToken(null);
-      setUser(null);
-      setWallet(null);
+      await loadSessionResilient(tok);
+      setStoredToken(tok);
+      setToken(tok);
+    } catch (error) {
+      if (isAuthError(error)) clearLocalSession();
     }
-  }, [loadSessionWithToken]);
+  }, [clearLocalSession, loadSessionResilient, resolveActiveToken]);
 
   const refreshWallet = useCallback(async () => {
-    const tok = getStoredToken();
+    const tok = await resolveActiveToken();
     if (!tok) return;
     try {
       const data = await apiFetch<{ wallet: PlayerWallet }>('/api/wallet', { token: tok });
@@ -118,7 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // ignore transient
     }
-  }, []);
+  }, [resolveActiveToken]);
 
   useEffect(() => {
     let mounted = true;
@@ -156,18 +199,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setStoredToken(session.access_token);
               setToken(session.access_token);
               try {
-                await loadSessionWithToken(session.access_token);
+                await loadSessionResilient(session.access_token);
               } catch {
-                // ignore transient
+                // keep the Supabase session; the next load or API call retries
               }
             } else if (event === 'SIGNED_OUT') {
-              setStoredToken(null);
-              setToken(null);
-              setUser(null);
-              setWallet(null);
-              setStats(null);
-              setAchievements([]);
-              setActiveRoom(null);
+              clearLocalSession();
             }
           });
           subscription = listener.subscription;
@@ -176,15 +213,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (data.session?.access_token) {
             setStoredToken(data.session.access_token);
             if (mounted) setToken(data.session.access_token);
-            await loadSessionWithToken(data.session.access_token);
+            try {
+              await loadSessionResilient(data.session.access_token);
+            } catch (error) {
+              if (isAuthError(error)) {
+                // The server rejected this session outright — start clean.
+                await supabase.auth.signOut().catch(() => undefined);
+                clearLocalSession();
+              }
+              // Otherwise keep the persisted Supabase session for the next attempt.
+            }
           } else {
             const existingTok = getStoredToken();
             if (existingTok) {
               try {
-                await loadSessionWithToken(existingTok);
-              } catch {
-                setStoredToken(null);
-                if (mounted) setToken(null);
+                await loadSessionResilient(existingTok);
+              } catch (error) {
+                if (isAuthError(error)) clearLocalSession();
               }
             }
           }
@@ -192,13 +237,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const existingTok = getStoredToken();
           if (existingTok) {
             try {
-              await loadSessionWithToken(existingTok);
-            } catch {
-              setStoredToken(null);
-              if (mounted) setToken(null);
+              await loadSessionResilient(existingTok);
+            } catch (error) {
+              if (isAuthError(error)) clearLocalSession();
             }
           }
         }
+      } catch (error) {
+        console.warn('Session restore skipped:', error);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -208,23 +254,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription?.unsubscribe();
     };
-  }, [loadSessionWithToken]);
+  }, [clearLocalSession, loadSessionResilient]);
 
   const register = async (params: { email: string; password: string; username: string; avatarId: string }) => {
     const supabase = await getSupabaseClient();
     if (supabase) {
-      const check = await apiFetch<{ available: boolean; valid: boolean }>(
-        `/api/auth/check-username?username=${encodeURIComponent(params.username)}`,
-        { token: null }
-      );
-      if (!check.valid) throw new Error('Username must be 3–24 letters, numbers, or underscores.');
-      if (!check.available) throw new Error('That username is already taken.');
+      const username = params.username.trim();
+      if (!/^[a-zA-Z0-9_]{3,24}$/.test(username)) {
+        throw new Error('Username must be 3–24 letters, numbers, or underscores.');
+      }
+
+      // Best-effort availability hint. The signup itself must never be blocked by
+      // this helper call: the server enforces uniqueness when it creates the profile.
+      try {
+        const check = await apiFetch<{ available: boolean; valid: boolean }>(
+          `/api/auth/check-username?username=${encodeURIComponent(username)}`,
+          { token: null }
+        );
+        if (!check.valid) throw new Error('Username must be 3–24 letters, numbers, or underscores.');
+        if (!check.available) throw new Error('That username is already taken.');
+      } catch (error) {
+        if (!(error instanceof ApiError)) throw error;
+      }
 
       const { data, error } = await supabase.auth.signUp({
         email: params.email.trim().toLowerCase(),
         password: params.password,
         options: {
-          data: { username: params.username.trim(), avatarId: params.avatarId },
+          data: { username, avatarId: params.avatarId },
           emailRedirectTo: window.location.origin,
         },
       });
@@ -238,7 +295,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.session?.access_token) {
         setStoredToken(data.session.access_token);
         setToken(data.session.access_token);
-        await loadSessionWithToken(data.session.access_token);
+        try {
+          await loadSessionResilient(data.session.access_token);
+        } catch (sessionError) {
+          if (isAuthError(sessionError)) {
+            clearLocalSession();
+            throw new Error('Your account was created, but the session could not be started. Please sign in.');
+          }
+          throw new Error(
+            'Your account was created, but the game server is not responding yet. Please refresh the page in a moment.'
+          );
+        }
         return { requiresVerification: false };
       }
       return { requiresVerification: true };
@@ -286,7 +353,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setStoredToken(data.session.access_token);
       setToken(data.session.access_token);
-      await loadSessionWithToken(data.session.access_token);
+      try {
+        await loadSessionResilient(data.session.access_token);
+      } catch (sessionError) {
+        if (isAuthError(sessionError)) {
+          clearLocalSession();
+          throw new Error('Signed in, but the game profile could not be loaded. Please try again.');
+        }
+        throw new Error('Signed in, but the game server is not responding yet. Please refresh the page in a moment.');
+      }
       return;
     }
 
@@ -365,7 +440,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (activeToken && data.user) {
       setStoredToken(activeToken);
       setToken(activeToken);
-      await loadSessionWithToken(activeToken);
+      await loadSessionResilient(activeToken);
     }
   };
 
@@ -397,13 +472,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
     }
     setPasswordRecoveryActive(false);
-    setStoredToken(null);
-    setToken(null);
-    setUser(null);
-    setWallet(null);
-    setStats(null);
-    setAchievements([]);
-    setActiveRoom(null);
+    clearLocalSession();
   };
 
   const updateProfile = async (patch: Partial<UserProfile>) => {

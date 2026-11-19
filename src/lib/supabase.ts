@@ -10,24 +10,48 @@ export interface PublicSupabaseRuntimeConfig {
   supabaseAnonKey: string;
 }
 
-let cachedClient: SupabaseClient | null = null;
-let publicConfigPromise: Promise<PublicSupabaseRuntimeConfig> | null = null;
+const EMPTY_CONFIG: PublicSupabaseRuntimeConfig = {
+  supabaseConfigured: false,
+  supabaseAuthEnabled: false,
+  hasSupabaseUrl: false,
+  hasSupabasePublicKey: false,
+  hasServiceRoleKey: false,
+  supabaseUrl: '',
+  supabaseAnonKey: '',
+};
 
-export async function fetchPublicConfig(): Promise<PublicSupabaseRuntimeConfig> {
-  if (!publicConfigPromise) {
-    publicConfigPromise = fetch('/api/public-config')
-      .then((r) => r.json())
-      .catch(() => ({
-        supabaseConfigured: false,
-        supabaseAuthEnabled: false,
-        hasSupabaseUrl: false,
-        hasSupabasePublicKey: false,
-        hasServiceRoleKey: false,
-        supabaseUrl: '',
-        supabaseAnonKey: '',
-      }));
-  }
-  return publicConfigPromise;
+let cachedClient: SupabaseClient | null = null;
+let cachedPublicConfig: PublicSupabaseRuntimeConfig | null = null;
+let inflightPublicConfig: Promise<PublicSupabaseRuntimeConfig> | null = null;
+
+function isPlaceholder(value: string): boolean {
+  return !value || value.includes('your-project-id') || value.includes('your-supabase');
+}
+
+/**
+ * Reads the runtime Supabase settings from the game server.
+ * Successful responses are cached; a failed request is never cached, so a single
+ * hiccup at boot cannot permanently drop the app into offline/local auth mode.
+ */
+export async function fetchPublicConfig(force = false): Promise<PublicSupabaseRuntimeConfig> {
+  if (!force && cachedPublicConfig) return cachedPublicConfig;
+  if (inflightPublicConfig) return inflightPublicConfig;
+
+  inflightPublicConfig = (async () => {
+    try {
+      const res = await fetch('/api/public-config', { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`public-config ${res.status}`);
+      const cfg = (await res.json()) as Partial<PublicSupabaseRuntimeConfig>;
+      cachedPublicConfig = { ...EMPTY_CONFIG, ...cfg };
+      return cachedPublicConfig;
+    } catch {
+      return EMPTY_CONFIG;
+    } finally {
+      inflightPublicConfig = null;
+    }
+  })();
+
+  return inflightPublicConfig;
 }
 
 export async function getSupabaseClient(): Promise<SupabaseClient | null> {
@@ -39,15 +63,15 @@ export async function getSupabaseClient(): Promise<SupabaseClient | null> {
     import.meta.env.VITE_SUPABASE_ANON_KEY ||
     '';
 
-  if (!url || !key || url.includes('your-project-id') || key.includes('your-supabase')) {
+  if (isPlaceholder(url) || isPlaceholder(key)) {
     const cfg = await fetchPublicConfig();
-    if ((cfg.supabaseAuthEnabled || cfg.supabaseConfigured) && cfg.supabaseUrl && cfg.supabaseAnonKey) {
+    if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
       url = cfg.supabaseUrl;
       key = cfg.supabaseAnonKey;
     }
   }
 
-  if (!url || !key || url.includes('your-project-id') || key.includes('your-supabase')) {
+  if (isPlaceholder(url) || isPlaceholder(key)) {
     return null;
   }
 
@@ -59,4 +83,23 @@ export async function getSupabaseClient(): Promise<SupabaseClient | null> {
     },
   });
   return cachedClient;
+}
+
+/** Current access token from the persisted Supabase session (refreshed when expired). */
+export async function getSupabaseAccessToken(): Promise<string | null> {
+  const supabase = await getSupabaseClient();
+  if (!supabase) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const session = data.session;
+    if (!session) return null;
+    const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+    if (expiresAt && expiresAt - Date.now() < 30_000) {
+      const refreshed = await supabase.auth.refreshSession();
+      return refreshed.data.session?.access_token ?? session.access_token;
+    }
+    return session.access_token;
+  } catch {
+    return null;
+  }
 }

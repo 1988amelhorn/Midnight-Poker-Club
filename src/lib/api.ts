@@ -17,6 +17,28 @@ export function setStoredToken(token: string | null): void {
   }
 }
 
+/** API failure that keeps the HTTP status so callers can tell a real auth rejection from a transient outage. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+/** True when the server explicitly rejected the session (sign the user out). */
+export function isAuthError(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+}
+
+/** True when a retry can reasonably succeed: network blips, server restarts, rate limits. */
+export function isTransientApiError(error: unknown): boolean {
+  if (error instanceof ApiError) return error.status === 404 || error.status === 429 || error.status >= 500;
+  return true;
+}
+
 export async function apiFetch<T = any>(
   path: string,
   options: RequestInit & { token?: string | null } = {}
@@ -37,7 +59,17 @@ export async function apiFetch<T = any>(
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`);
+    const serverMessage = typeof data?.error === 'string' ? data.error : '';
+    if (serverMessage) {
+      throw new ApiError(serverMessage, res.status);
+    }
+    if (res.status === 404) {
+      throw new ApiError(
+        'The game server could not be reached (404). Please refresh in a moment and try again.',
+        404
+      );
+    }
+    throw new ApiError(`Request failed (${res.status})`, res.status);
   }
   return data as T;
 }
