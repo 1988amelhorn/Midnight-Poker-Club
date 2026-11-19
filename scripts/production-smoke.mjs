@@ -64,6 +64,15 @@ async function run() {
       'Shared poker room not available: ' + JSON.stringify(snap));
     console.log('PASS: both players share a poker room');
 
+    const started = await request('/api/rooms/' + roomId + '/start', 'POST', players[0]);
+    assert(started.status === 200 && started.body.ok === true,
+      'Starting live poker hand failed: ' + JSON.stringify(started));
+    const liveHand = await request('/api/rooms/' + roomId, 'GET', players[0]);
+    assert(liveHand.status === 200 && liveHand.body.poker?.currentTurnUserId,
+      'Live hand not dealing/actionable: ' + JSON.stringify(liveHand));
+    console.log('PASS: live poker hand started and actionable');
+
+
     const wsAddress = base.replace(/^http/, 'ws') + '/ws?token=' + encodeURIComponent(players[0]);
     const message = await new Promise((resolve, reject) => {
       const ws = new WebSocket(wsAddress, { handshakeTimeout: 15000 });
