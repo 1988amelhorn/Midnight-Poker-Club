@@ -145,11 +145,11 @@ const ClubShell: React.FC = () => {
     setScreen(nextScreen);
   };
 
-  const joinRoomById = async (roomIdOrCode: string) => {
+  const joinRoomById = async (roomIdOrCode: string, friendId?: string) => {
     try {
       const res = await apiFetch<{ room: GameRoomSummary }>('/api/rooms/join', {
         method: 'POST',
-        body: JSON.stringify({ roomIdOrCode }),
+        body: JSON.stringify({ roomIdOrCode, ...(friendId ? { friendId } : {}) }),
       });
       await refreshWallet();
       enterRoom(res.room);
@@ -460,7 +460,7 @@ const ClubShell: React.FC = () => {
         {screen === 'friends' && (
           <FriendsView
             onBack={() => setScreen('lobby')}
-            onJoinFriendRoom={(rId) => void joinRoomById(rId)}
+            onJoinFriendRoom={(rId, friendId) => void joinRoomById(rId, friendId)}
             onWatchFriendRoom={(roomId, friendId, username) => setSpectating({ roomId, friendId, username })}
           />
         )}
