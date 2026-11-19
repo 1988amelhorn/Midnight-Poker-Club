@@ -152,10 +152,10 @@ export const BlackjackTableView: React.FC<{
   return (
     <div
       onClick={() => soundEngine.unlock()}
-      className="relative flex flex-col h-[100dvh] w-full overflow-hidden bg-[#060911] text-slate-100"
+      className="casino-screen relative flex flex-col h-[100dvh] w-full overflow-hidden bg-[#060911] text-slate-100"
     >
       {/* Top Bar */}
-      <header className="relative z-20 flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 border-b border-sky-400/20 bg-[#080d1e]/90 backdrop-blur-xl shadow-[0_6px_28px_rgba(0,0,0,0.55)]">
+      <header className="neon-casino-panel relative z-20 flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 border-b border-sky-400/20 bg-[#080d1e]/90 backdrop-blur-xl shadow-[0_6px_28px_rgba(0,0,0,0.55)]">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
             type="button"
