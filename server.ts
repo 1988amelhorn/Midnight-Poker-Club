@@ -99,6 +99,9 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
   function friendsDb(req: AuthedRequest) {
     if (!isSupabaseAuthEnabled) return null;
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    // Local email/password sessions are two-part HMAC tokens, while Supabase
+    // OAuth access tokens are three-part JWTs. Preserve local-only test mode.
+    if (token.split('.').length !== 3) return null;
     return createSupabaseUserClient(token);
   }
 
@@ -717,8 +720,7 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
       });
     }
 
-    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-    const db = supabaseAdmin ?? createSupabaseUserClient(token);
+    const db = friendsDb(req);
     if (db) {
       // Escape ilike wildcards so searches are literal usernames, not patterns.
       const literal = q.replace(/[\\%_]/g, (char) => '\\' + char);
