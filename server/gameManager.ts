@@ -1184,8 +1184,6 @@ export class GameManager {
       this.broadcastRoomState(room.id);
     }
     this.scheduleBlindLevelTimer(tourn);
-
-    this.broadcastRoomState(room.id);
     this.broadcastTournamentUpdate(tourn);
     this.broadcastLobbyUpdate();
     return { ok: true, tournament: this.summarizeTournament(tourn) };
