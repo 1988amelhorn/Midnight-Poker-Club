@@ -865,6 +865,8 @@ export const RoomWaitingLobbyView: React.FC<{
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyBot, setBusyBot] = useState(false);
+  const [savingClub, setSavingClub] = useState(false);
+  const [clubSaved, setClubSaved] = useState(false);
 
   useEffect(() => {
     subscribeRoom(roomId);
@@ -918,6 +920,19 @@ export const RoomWaitingLobbyView: React.FC<{
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to change bot difficulty');
+    }
+  };
+
+  const saveClubTable = async () => {
+    setSavingClub(true);
+    setError(null);
+    try {
+      await apiFetch('/api/clubs/presets', { method: 'POST', body: JSON.stringify({ roomId }) });
+      setClubSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save table');
+    } finally {
+      setSavingClub(false);
     }
   };
 
@@ -1053,6 +1068,15 @@ export const RoomWaitingLobbyView: React.FC<{
           ))}
         </div>
 
+        {isHost && !currentRoom.tournamentId && (
+          <div className="pt-2">
+            <button type="button" onClick={() => void saveClubTable()} disabled={savingClub || clubSaved}
+              className="btn-glossy btn-glossy-purple px-5 py-2.5 rounded-full w-full text-sm font-bold text-white disabled:opacity-65">
+              {clubSaved ? '✓ Saved to My Club Tables' : savingClub ? 'Saving…' : 'Save Table for Future Game Nights'}
+            </button>
+            <p className="text-xs text-slate-400 mt-2 text-center">Save this table's setup so you can reopen it later. Finished hands are not saved yet.</p>
+          </div>
+        )}
         <div className="pt-2 flex gap-2.5">
           <button
             type="button"
