@@ -241,6 +241,10 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
   const [outgoing, setOutgoing] = useState<FriendRequestItem[]>([]);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ userId: string; username: string; avatarId: string; level: number; isFriend: boolean }>>([]);
+  const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [requestedIds, setRequestedIds] = useState<string[]>([]);
   const [giftTarget, setGiftTarget] = useState<FriendItem | null>(null);
   const [giftAmount, setGiftAmount] = useState(250);
   const [notice, setNotice] = useState<string | null>(null);
@@ -263,17 +267,55 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
     return () => clearInterval(timer);
   }, []);
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const searchPlayers = async (term: string, cancelled: () => boolean) => {
+    if (term.length < 2) {
+      setSearchResults([]);
+      setHasSearched(false);
+      setSearchError(null);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const res = await apiFetch<{ players: typeof searchResults }>(`/api/players/search?q=${encodeURIComponent(term)}`);
+      if (!cancelled()) {
+        setSearchResults(res.players || []);
+        setHasSearched(true);
+      }
+    } catch (err) {
+      if (!cancelled()) {
+        setSearchResults([]);
+        setHasSearched(true);
+        setSearchError(err instanceof Error ? err.message : 'Could not search players');
+      }
+    } finally {
+      if (!cancelled()) setSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void searchPlayers(query.trim(), () => cancelled);
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim().length < 2) return;
-    const res = await apiFetch<{ players: typeof searchResults }>(`/api/players/search?q=${encodeURIComponent(query.trim())}`);
-    setSearchResults(res.players || []);
+    // Typing searches automatically; submitting also triggers an immediate lookup.
+    void searchPlayers(query.trim(), () => false);
   };
 
   const sendRequest = async (receiverId: string) => {
     try {
       await apiFetch('/api/friends/request', { method: 'POST', body: JSON.stringify({ receiverId }) });
       setNotice('Friend request sent');
+      setRequestedIds((ids) => [...ids, receiverId]);
       await loadFriends();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : 'Unable to send request');
@@ -327,17 +369,33 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            autoComplete="off"
+            aria-label="Search players by username"
             placeholder="Search players by username..."
             className="input-bubbly w-full rounded-full pl-10 pr-4 py-2.5 text-sm text-white"
           />
         </div>
-        <button type="submit" className="btn-glossy btn-glossy-blue px-5 py-2.5 rounded-full text-white font-bold text-xs">
-          Search
+        <button type="submit" disabled={query.trim().length < 2 || searching} className="btn-glossy btn-glossy-blue px-5 py-2.5 rounded-full text-white font-bold text-xs disabled:opacity-60">
+          {searching ? 'Searching…' : 'Search'}
         </button>
       </form>
 
+      {query.trim().length === 1 && (
+        <p className="text-xs text-slate-400 px-2">Type at least 2 characters to find players.</p>
+      )}
+      {searchError && (
+        <div role="alert" className="rounded-2xl border border-rose-400/40 bg-rose-950/25 px-4 py-3 text-sm text-rose-200">
+          {searchError}
+        </div>
+      )}
+      {hasSearched && !searching && !searchError && searchResults.length === 0 && (
+        <div className="glass-bubbly rounded-[24px] px-4 py-5 text-center">
+          <p className="text-sm font-bold text-white">No players found for “{query.trim()}”</p>
+          <p className="text-xs text-slate-400 mt-1">Check the spelling or try part of their username.</p>
+        </div>
+      )}
       {searchResults.length > 0 && (
-        <div className="glass-bubbly rounded-[28px] p-4 space-y-2">
+        <div className="glass-bubbly rounded-[28px] p-4 space-y-2" aria-live="polite">
           <h2 className="text-xs font-semibold text-slate-400 uppercase">Search Results</h2>
           {searchResults.map((p) => (
             <div key={p.userId} className="flex items-center justify-between py-2 border-b border-slate-800/60 last:border-0">
@@ -350,7 +408,7 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
               </div>
               {p.isFriend ? (
                 <span className="text-xs text-emerald-400 flex items-center gap-1"><UserCheck className="w-4 h-4" /> Friend</span>
-              ) : outgoing.some((r) => r.receiverId === p.userId) ? (
+              ) : (requestedIds.includes(p.userId) || outgoing.some((r) => r.receiverId === p.userId)) ? (
                 <span className="text-xs text-amber-300">Request sent</span>
               ) : (
                 <button
@@ -358,7 +416,7 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
                   onClick={() => void sendRequest(p.userId)}
                   className="btn-glossy btn-glossy-blue inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white"
                 >
-                  <UserPlus className="w-3.5 h-3.5" /> Add
+                  <UserPlus className="w-3.5 h-3.5" /> Add Friend
                 </button>
               )}
             </div>
