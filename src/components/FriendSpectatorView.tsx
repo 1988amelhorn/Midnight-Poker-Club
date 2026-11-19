@@ -36,6 +36,7 @@ export const FriendSpectatorView: React.FC<{
         }
       } catch (err) {
         if (!cancelled) {
+          setSnapshot(null);
           setError(err instanceof Error ? err.message : 'Could not watch this game');
         }
       } finally {
