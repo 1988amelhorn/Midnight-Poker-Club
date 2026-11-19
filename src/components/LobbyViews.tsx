@@ -461,6 +461,34 @@ export const CreatePrivateRoomView: React.FC<{
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('normal');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [savedTables, setSavedTables] = useState<Array<{
+    id: string; name: string; game_type: GameType;
+    max_players: number; min_buyin: number; created_at: string;
+  }>>([]);
+  const [reopening, setReopening] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void apiFetch<{ tables: typeof savedTables }>('/api/clubs/presets')
+      .then((result) => { if (alive) setSavedTables(result.tables || []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const reopenSavedTable = async (id: string) => {
+    setError(null);
+    setReopening(id);
+    try {
+      const result = await apiFetch<{ room: GameRoomSummary }>(
+        `/api/clubs/presets/${encodeURIComponent(id)}/reopen`, { method: 'POST' }
+      );
+      await refreshWallet();
+      onCreated(result.room);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reopen table');
+    } finally {
+      setReopening(null);
+    }
+  };
 
   const maxAllowedBots = Math.max(0, maxPlayers - 1);
   const clampedBots = gameType === 'holdem' ? Math.min(initialBots, maxAllowedBots) : 0;
@@ -511,6 +539,26 @@ export const CreatePrivateRoomView: React.FC<{
           Have a code? Join
         </button>
       </div>
+
+      {savedTables.length > 0 && (
+        <section className="neon-casino-panel glass-bubbly rounded-[26px] p-4 space-y-3">
+          <h2 className="font-display font-bold text-sm text-amber-300">Your Saved Club Tables</h2>
+          <p className="text-xs text-slate-400">Reopen a familiar table with its previous blinds and seat limits. A fresh game starts.</p>
+          {savedTables.map((item) => (
+            <div key={item.id} className="input-bubbly rounded-2xl p-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-white font-bold text-sm truncate">{item.name}</p>
+                <p className="text-xs text-slate-400">{item.game_type === 'holdem' ? 'Poker' : 'Blackjack'} · {item.max_players} seats</p>
+              </div>
+              <button type="button" disabled={reopening !== null}
+                onClick={() => void reopenSavedTable(item.id)}
+                className="btn-glossy btn-glossy-blue text-white font-bold text-xs rounded-full px-4 py-2 shrink-0 disabled:opacity-60">
+                {reopening === item.id ? 'Opening…' : 'Reopen'}
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       {error && <div className="rounded-2xl bg-rose-500/15 border border-rose-500/40 px-4 py-2.5 text-xs text-rose-300">{error}</div>}
 
