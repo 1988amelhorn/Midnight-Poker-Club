@@ -593,6 +593,37 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     res.json({ friends });
   });
 
+  // Public-facing player card: never expose email, roles, wallet tokens, or
+  // private account details. Require a session and disable response caching.
+  app.get('/api/players/:id/profile', requireAuth, (req: AuthedRequest, res) => {
+    const playerId = String(req.params.id || '');
+    const record = dataStore.users.get(playerId);
+    if (!record || record.profile.isSuspended) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+    const p = record.profile;
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      profile: {
+        id: p.id,
+        username: p.username,
+        avatarId: p.avatarId,
+        level: p.level,
+        xp: p.xp,
+        bio: p.bio,
+        createdAt: p.createdAt,
+      },
+      stats: record.stats,
+      isFriend: dataStore.areFriends(req.authUser!.profile.id, playerId),
+      isSelf: req.authUser!.profile.id === playerId,
+      friendRequestPending: Array.from(dataStore.friendRequests.values()).some((r) =>
+        r.status === 'pending' &&
+        ((r.senderId === req.authUser!.profile.id && r.receiverId === playerId) ||
+          (r.senderId === playerId && r.receiverId === req.authUser!.profile.id))
+      ),
+    });
+  });
+
   app.get('/api/players/search', requireAuth, (req: AuthedRequest, res) => {
     const q = String(req.query.q || '').trim().toLowerCase();
     const uid = req.authUser!.profile.id;
