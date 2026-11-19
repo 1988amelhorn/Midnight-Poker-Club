@@ -1268,6 +1268,10 @@ export class GameManager {
       }
     }
 
+    // Remove busted seats after their hand has settled. Eliminated players keep
+    // their tournament membership, allowing read-only spectating.
+    for (const uid of newlyEliminated) engine.removePlayer(uid);
+
     if (newlyEliminated.length > 0) {
       let place = alivePlayersBefore;
       for (const uid of newlyEliminated) {
