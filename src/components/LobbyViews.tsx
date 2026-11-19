@@ -46,7 +46,8 @@ export type AppScreen =
 
 export const MainLobbyView: React.FC<{
   onNavigate: (screen: AppScreen, param?: string) => void;
-}> = ({ onNavigate }) => {
+  pendingFriendRequests?: number;
+}> = ({ onNavigate, pendingFriendRequests = 0 }) => {
   const { user, wallet, activeRoom, stats } = useAuth();
   const { lobbyRooms, lobbyTournaments, refreshLobby } = useGameSocket();
 
@@ -218,6 +219,36 @@ export const MainLobbyView: React.FC<{
           </button>
         </div>
       </div>
+
+      {/* Friend requests and direct access to friends from the home screen. */}
+      <button
+        type="button"
+        onClick={() => onNavigate('friends')}
+        className="w-full rounded-[26px] glass-bubbly border border-cyan-400/30 p-4 flex items-center justify-between gap-3 text-left hover:border-cyan-300/70 transition"
+        aria-label={pendingFriendRequests > 0 ? `Friends: ${pendingFriendRequests} pending requests` : 'Open Friends'}
+      >
+        <div className="flex items-center gap-3">
+          <span className="relative flex items-center justify-center w-12 h-12 shrink-0 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300">
+            <Users className="w-6 h-6" />
+            {pendingFriendRequests > 0 && (
+              <span className="absolute -right-2 -top-2 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[11px] font-extrabold grid place-items-center ring-2 ring-[#0c1329]">
+                {pendingFriendRequests > 99 ? '99+' : pendingFriendRequests}
+              </span>
+            )}
+          </span>
+          <span>
+            <span className="block text-sm font-display font-extrabold text-white">Friends</span>
+            <span className={`block text-xs ${pendingFriendRequests ? 'text-amber-300 font-bold' : 'text-slate-400'}`}>
+              {pendingFriendRequests > 0
+                ? `${pendingFriendRequests} new friend ${pendingFriendRequests === 1 ? 'request' : 'requests'} · Tap to respond`
+                : 'See online friends, join games and send requests'}
+            </span>
+          </span>
+        </div>
+        <span className="rounded-full px-3 py-2 bg-cyan-500/15 border border-cyan-400/40 text-xs font-bold text-cyan-200 whitespace-nowrap">
+          {pendingFriendRequests ? 'Review' : 'Open'}
+        </span>
+      </button>
 
       {/* Live Public Tables Preview */}
       <div className="rounded-[28px] glass-bubbly p-5 space-y-3.5">
