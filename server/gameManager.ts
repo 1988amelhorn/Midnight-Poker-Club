@@ -108,6 +108,7 @@ interface ManagedTournament {
   currentLevel: number;
   levelEndsAt: string | null;
   roomId: string | null;
+  roomIds: string[];
   winnerId: string | null;
   winnerUsername: string | null;
   totalHandsPlayed: number;
@@ -344,8 +345,9 @@ export class GameManager {
     const isTournamentRoom = Boolean(room.tournamentId);
     if (isTournamentRoom) {
       const tourn = this.tournaments.get(room.tournamentId!);
-      if (!tourn || !tourn.players.has(params.userId)) {
-        return { ok: false, error: 'You are not registered in this tournament' };
+      if (!tourn || tourn.players.get(params.userId)?.status !== 'active' ||
+          !room.pokerEngine?.seats.some(s => s.userId === params.userId)) {
+        return { ok: false, error: 'Tournament seats are assigned automatically; use your assigned table' };
       }
     }
 
@@ -421,6 +423,7 @@ export class GameManager {
     const room = this.rooms.get(roomId);
     if (!room) return { ok: false, returnedChips: 0 };
 
+    if (room.tournamentId) return { ok: false, returnedChips: 0 };
     let remaining = 0;
     if (room.gameType === 'holdem' && room.pokerEngine) {
       remaining = room.pokerEngine.removePlayer(userId);
@@ -813,6 +816,7 @@ export class GameManager {
       if (tourn) {
         tourn.totalHandsPlayed += 1;
         this.syncTournamentAfterHand(tourn, engine);
+        this.rebalanceTournamentTables(tourn);
       }
     }
 
@@ -932,22 +936,12 @@ export class GameManager {
       return { ok: false, error: 'Tournament name must be 2–60 characters' };
     }
 
-    const maxPlayers = Math.max(2, Math.min(9, params.maxPlayers));
+    const maxPlayers = Math.max(2, Math.min(180, Math.floor(params.maxPlayers)));
     const startingChips = Math.max(500, params.startingChips ?? 5000);
     const startingSb = Math.max(5, params.startingSb ?? 25);
     const startingBb = Math.max(startingSb * 2, params.startingBb ?? startingSb * 2);
     const blindIntervalMinutes = Math.max(1, Math.min(60, params.blindIntervalMinutes ?? 10));
-    const entryFee = Math.max(0, Math.floor(params.entryFee ?? 0));
-
-    if (entryFee > 0) {
-      const debit = this.dataStore.mutateChips({
-        userId: params.creatorId,
-        delta: -entryFee,
-        txType: 'tournament_buyin',
-        description: `Tournament entry fee: ${cleanName}`,
-      });
-      if (!debit.ok) return { ok: false, error: debit.error || 'Insufficient chips for tournament entry fee' };
-    }
+    const entryFee = 0; // All tournament entries are free; stacks cannot be replenished.
 
     const code = generateSixCharCode(new Set(this.tournamentCodeToId.keys()));
     const id = randomUUID();
@@ -973,6 +967,7 @@ export class GameManager {
       currentLevel: 1,
       levelEndsAt: null,
       roomId: null,
+      roomIds: [],
       winnerId: null,
       winnerUsername: null,
       totalHandsPlayed: 0,
@@ -1088,17 +1083,6 @@ export class GameManager {
     const user = this.dataStore.users.get(userId);
     if (!user) return { ok: false, error: 'Player not found' };
 
-    if (tourn.entryFee > 0) {
-      const debit = this.dataStore.mutateChips({
-        userId,
-        delta: -tourn.entryFee,
-        txType: 'tournament_buyin',
-        referenceId: tourn.id,
-        description: `Tournament entry fee: ${tourn.name}`,
-      });
-      if (!debit.ok) return { ok: false, error: debit.error || 'Insufficient chips for entry fee' };
-    }
-
     tourn.players.set(userId, {
       userId,
       username: user.profile.username,
@@ -1149,33 +1133,34 @@ export class GameManager {
     if (tourn.status !== 'registering') return { ok: false, error: 'Tournament already started' };
     if (tourn.players.size < 2) return { ok: false, error: 'Need at least 2 players to start tournament' };
 
-    const roomRes = this.createRoom({
-      hostId: tourn.creatorId,
-      name: tourn.name,
-      gameType: 'holdem',
-      visibility: tourn.visibility,
-      maxPlayers: tourn.maxPlayers,
-      smallBlind: tourn.startingSb,
-      bigBlind: tourn.startingBb,
-      minBuyin: tourn.startingChips,
-      maxBuyin: tourn.startingChips,
-      gameSpeed: tourn.gameSpeed,
-      allowProbabilityAssist: tourn.allowProbabilityAssist,
-      tournamentId: tourn.id,
-    });
-
-    if (!roomRes.ok || !roomRes.room) {
-      return { ok: false, error: roomRes.error || 'Failed to create tournament table' };
+    // Spread players evenly, nine per table. Chips never touch the cash-game wallet.
+    const entrants = Array.from(tourn.players.values());
+    const tableCount = Math.ceil(entrants.length / 9);
+    const rooms: ManagedRoom[] = [];
+    for (let i = 0; i < tableCount; i++) {
+      const result = this.createRoom({
+        hostId: tourn.creatorId,
+        name: `${tourn.name.slice(0, 34)} · Table ${i + 1}`,
+        gameType: 'holdem',
+        visibility: 'private',
+        maxPlayers: 9,
+        smallBlind: tourn.startingSb,
+        bigBlind: tourn.startingBb,
+        minBuyin: tourn.startingChips,
+        maxBuyin: tourn.startingChips,
+        gameSpeed: tourn.gameSpeed,
+        allowProbabilityAssist: tourn.allowProbabilityAssist,
+        tournamentId: tourn.id,
+      });
+      if (!result.ok || !result.room) return { ok: false, error: result.error || 'Unable to create tournament table' };
+      rooms.push(this.rooms.get(result.room.id)!);
     }
 
-    const room = this.rooms.get(roomRes.room.id)!;
-    const engine = room.pokerEngine!;
-    engine.ante = tourn.anteEnabled ? tourn.blindSchedule[0].ante : 0;
-
-    for (const p of tourn.players.values()) {
+    entrants.forEach((p, index) => {
+      const room = rooms[index % tableCount];
       p.status = 'active';
       p.tournamentChips = tourn.startingChips;
-      engine.addPlayer(p.userId, p.username, p.avatarId, tourn.startingChips, undefined, {
+      room.pokerEngine!.addPlayer(p.userId, p.username, p.avatarId, p.tournamentChips, undefined, {
         isBot: p.isBot,
         botDifficulty: p.botDifficulty,
       });
@@ -1183,22 +1168,72 @@ export class GameManager {
         const rec = this.dataStore.users.get(p.userId);
         if (rec) rec.stats.tournamentsPlayed += 1;
       }
-    }
+    });
 
     tourn.status = 'in_progress';
-    tourn.roomId = room.id;
+    tourn.roomId = rooms[0].id;
+    tourn.roomIds = rooms.map((room) => room.id);
     tourn.currentLevel = 1;
     tourn.levelEndsAt = new Date(Date.now() + tourn.blindIntervalMinutes * 60_000).toISOString();
 
-    room.status = 'active';
-    engine.startNewHand();
-    this.schedulePokerTimers(room);
+    for (const room of rooms) {
+      room.status = 'active';
+      room.pokerEngine!.ante = tourn.anteEnabled ? tourn.blindSchedule[0].ante : 0;
+      room.pokerEngine!.startNewHand();
+      this.schedulePokerTimers(room);
+      this.broadcastRoomState(room.id);
+    }
     this.scheduleBlindLevelTimer(tourn);
 
     this.broadcastRoomState(room.id);
     this.broadcastTournamentUpdate(tourn);
     this.broadcastLobbyUpdate();
     return { ok: true, tournament: this.summarizeTournament(tourn) };
+  }
+
+  // Move seats only between hands, preserving their exact stack and bot settings.
+  // A busy source table is deferred until its hand finishes.
+  private rebalanceTournamentTables(tourn: ManagedTournament): void {
+    if (tourn.status !== 'in_progress') return;
+    const rooms = tourn.roomIds.map(id => this.rooms.get(id)).filter((r): r is ManagedRoom => Boolean(r?.pokerEngine));
+    const activeSeats = (room: ManagedRoom) =>
+      room.pokerEngine!.seats.filter(seat => tourn.players.get(seat.userId)?.status === 'active');
+    const total = rooms.reduce((n, room) => n + activeSeats(room).length, 0);
+    if (total < 2) return;
+    for (let attempt = 0; attempt < tourn.maxPlayers; attempt++) {
+      const populated = rooms.filter(room => activeSeats(room).length > 0);
+      if (populated.length < 2) break;
+      const targetCount = Math.ceil(total / 9);
+      // Consolidate to fewer tables when possible, otherwise even the remaining fields.
+      const donor = [...populated]
+        .filter(room => ['waiting', 'showdown'].includes(room.pokerEngine!.street))
+        .sort((a,b) => activeSeats(a).length - activeSeats(b).length)[0];
+      const receiver = [...populated]
+        .filter(room => room.id !== donor?.id && activeSeats(room).length < 9)
+        .sort((a,b) => activeSeats(b).length - activeSeats(a).length)[0];
+      if (!donor || !receiver) break;
+      const donorCount = activeSeats(donor).length;
+      const receiverCount = activeSeats(receiver).length;
+      if (populated.length <= targetCount && receiverCount <= donorCount + 1) break;
+      const seat = activeSeats(donor)[donorCount - 1];
+      if (!seat) break;
+      const stack = seat.chips;
+      donor.pokerEngine!.removePlayer(seat.userId);
+      receiver.pokerEngine!.addPlayer(seat.userId, seat.username, seat.avatarId, stack, undefined, {
+        isBot: seat.isBot,
+        botDifficulty: seat.botDifficulty,
+      });
+      // Existing WebSocket clients change their subscription without a new login.
+      this.notifyUser(seat.userId, { type: 'tournament:table_move', roomId: receiver.id, tournamentId: tourn.id });
+      this.broadcastRoomState(donor.id);
+      this.broadcastRoomState(receiver.id);
+      if (receiver.pokerEngine!.street === 'waiting' && receiver.pokerEngine!.canStartHand()) {
+        receiver.status = 'active';
+        receiver.pokerEngine!.startNewHand();
+        this.schedulePokerTimers(receiver);
+      }
+    }
+    this.broadcastTournamentUpdate(tourn);
   }
 
   private scheduleBlindLevelTimer(tourn: ManagedTournament): void {
@@ -1368,10 +1403,12 @@ export class GameManager {
       currentLevel: tourn.currentLevel,
       levelEndsAt: tourn.levelEndsAt,
       roomId: tourn.roomId,
+      roomIds: tourn.roomIds,
+      tables: tourn.roomIds.map(id => this.rooms.get(id)).filter((r): r is ManagedRoom => Boolean(r)).map(room => ({roomId: room.id, name: room.name, playerCount: room.pokerEngine?.seats.filter(s => tourn.players.get(s.userId)?.status === 'active').length ?? 0})),
       winnerId: tourn.winnerId,
       winnerUsername: tourn.winnerUsername,
       totalHandsPlayed: tourn.totalHandsPlayed,
-      players,
+      players: players.map(p => ({...p, roomId: tourn.roomIds.find(id => this.rooms.get(id)?.pokerEngine?.seats.some(seat => seat.userId === p.userId)) ?? null})),
       createdAt: tourn.createdAt,
     };
   }
@@ -1473,7 +1510,7 @@ export class GameManager {
   public broadcastTournamentUpdate(tourn: ManagedTournament): void {
     const summary = this.summarizeTournament(tourn);
     for (const client of this.clients) {
-      if (client.tournamentId === tourn.id || (tourn.roomId && client.roomId === tourn.roomId)) {
+      if (client.tournamentId === tourn.id || tourn.roomIds.includes(client.roomId ?? '')) {
         this.sendJson(client.ws, { type: 'tournament:state', tournament: summary });
       }
     }
