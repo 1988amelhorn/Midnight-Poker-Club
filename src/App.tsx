@@ -104,7 +104,7 @@ function getInitialAuthMode(): AuthScreenMode {
 
 const ClubShell: React.FC = () => {
   const { loading, user, wallet, activeRoom, passwordRecoveryActive, refreshWallet, refreshSession } = useAuth();
-  const { reconnecting, friendRequestRefreshVersion } = useGameSocket();
+  const { reconnecting, friendRequestRefreshVersion, currentTournament } = useGameSocket();
 
   const [screen, setScreen] = useState<AppScreen>('lobby');
   const [isOwner, setIsOwner] = useState(false);
@@ -115,6 +115,18 @@ const ClubShell: React.FC = () => {
   const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
   const [tournamentTab, setTournamentTab] = useState<'lobby' | 'info' | 'standings' | 'winner'>('lobby');
   const [prefillJoinCode, setPrefillJoinCode] = useState('');
+
+  // When the tournament director transfers our seat, switch the live view
+  // to the assigned table. Never redirect a spectator who is only watching.
+  useEffect(() => {
+    if (screen !== 'live_poker' || !activeRoomId || !user || !currentTournament) return;
+    const mine = currentTournament.players.find(player => player.userId === user.id);
+    if (mine?.status === 'active' && mine.roomId && mine.roomId !== activeRoomId &&
+        currentTournament.roomIds.includes(activeRoomId)) {
+      setActiveRoomId(mine.roomId);
+    }
+  }, [screen, activeRoomId, user?.id, currentTournament]);
+
 
   useEffect(() => {
     if (!user) { setIsOwner(false); return; }
