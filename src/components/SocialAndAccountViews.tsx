@@ -229,13 +229,15 @@ export const PlayerProfileView: React.FC<{
 };
 
 // 20. FRIENDS & CHIP GIFTS
-export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (roomId: string) => void }> = ({
+export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (roomId: string, friendId: string) => void; onWatchFriendRoom: (roomId: string, friendId: string, username: string) => void }> = ({
   onBack,
   onJoinFriendRoom,
+  onWatchFriendRoom,
 }) => {
   const { refreshWallet } = useAuth();
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [incoming, setIncoming] = useState<FriendRequestItem[]>([]);
+  const [outgoing, setOutgoing] = useState<FriendRequestItem[]>([]);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ userId: string; username: string; avatarId: string; level: number; isFriend: boolean }>>([]);
   const [giftTarget, setGiftTarget] = useState<FriendItem | null>(null);
@@ -243,13 +245,21 @@ export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (room
   const [notice, setNotice] = useState<string | null>(null);
 
   const loadFriends = async () => {
-    const data = await apiFetch<{ friends: FriendItem[]; incomingRequests: FriendRequestItem[] }>('/api/friends');
-    setFriends(data.friends || []);
-    setIncoming(data.incomingRequests || []);
+    const [roster, tables] = await Promise.all([
+      apiFetch<{ friends: FriendItem[]; incomingRequests: FriendRequestItem[]; outgoingRequests: FriendRequestItem[] }>('/api/friends'),
+      apiFetch<{ friends: FriendItem[] }>('/api/friends/tables'),
+    ]);
+    setFriends(tables.friends || roster.friends || []);
+    setIncoming(roster.incomingRequests || []);
+    setOutgoing(roster.outgoingRequests || []);
   };
 
   useEffect(() => {
-    void loadFriends();
+    void loadFriends().catch(() => setNotice('Friends list could not refresh'));
+    const timer = setInterval(() => {
+      void loadFriends().catch(() => {});
+    }, 12000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -263,6 +273,7 @@ export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (room
     try {
       await apiFetch('/api/friends/request', { method: 'POST', body: JSON.stringify({ receiverId }) });
       setNotice('Friend request sent');
+      await loadFriends();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : 'Unable to send request');
     }
@@ -332,6 +343,8 @@ export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (room
               </div>
               {p.isFriend ? (
                 <span className="text-xs text-emerald-400 flex items-center gap-1"><UserCheck className="w-4 h-4" /> Friend</span>
+              ) : outgoing.some((r) => r.receiverId === p.userId) ? (
+                <span className="text-xs text-amber-300">Request sent</span>
               ) : (
                 <button
                   type="button"
@@ -369,7 +382,10 @@ export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (room
       )}
 
       <div className="glass-bubbly rounded-[28px] p-4 space-y-2.5">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase">Your Friends ({friends.length})</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-semibold text-slate-400 uppercase">Your Friends ({friends.length})</h2>
+          <span className="text-xs text-emerald-300 font-bold">{friends.filter((f) => f.online).length} online</span>
+        </div>
         {friends.length === 0 ? (
           <p className="text-xs text-slate-500 py-4 text-center">No friends added yet. Search usernames above to connect.</p>
         ) : (
@@ -380,15 +396,26 @@ export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (room
                 <div>
                   <p className="text-sm font-semibold text-white">{f.username}</p>
                   <p className="text-[11px] text-slate-400">
-                    {f.online ? (f.currentRoomName ? `In ${f.currentRoomName}` : 'Online') : 'Offline'}
+                    {f.online ? (f.currentRoomName && f.canWatch ? `Playing: ${f.currentRoomName}` : 'Online now') : 'Offline'}
+                    {f.currentRoomName && !f.canWatch && f.canJoin ? ` · Table open: ${f.currentRoomName}` : ''}
+                    {f.currentRoomId && f.roomMaxPlayers ? ` · ${f.roomPlayerCount ?? 0}/${f.roomMaxPlayers} seats` : ''}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {f.currentRoomId && (
+                {f.currentRoomId && f.canWatch && (
                   <button
                     type="button"
-                    onClick={() => onJoinFriendRoom(f.currentRoomId!)}
+                    onClick={() => onWatchFriendRoom(f.currentRoomId!, f.userId, f.username)}
+                    className="btn-glossy px-3 py-1.5 rounded-full text-xs font-bold text-cyan-100 border border-cyan-500/50 bg-cyan-900/60"
+                  >
+                    Watch Game
+                  </button>
+                )}
+                {f.currentRoomId && f.canJoin && (
+                  <button
+                    type="button"
+                    onClick={() => onJoinFriendRoom(f.currentRoomId!, f.userId)}
                     className="btn-glossy btn-glossy-green px-3 py-1.5 rounded-full text-xs font-bold text-slate-950"
                   >
                     Join Game

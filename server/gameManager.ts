@@ -327,6 +327,7 @@ export class GameManager {
     userId: string;
     roomIdOrCode: string;
     password?: string;
+    friendInvited?: boolean;
     buyinAmount?: number;
   }): { ok: boolean; room?: GameRoomSummary; error?: string } {
     const cleanRef = params.roomIdOrCode.trim();
@@ -367,7 +368,7 @@ export class GameManager {
     }
 
     // Validate password for password-protected private rooms
-    if (room.passwordHash) {
+    if (room.passwordHash && !params.friendInvited) {
       if (!params.password || !this.dataStore.verifyPassword(params.password, room.passwordHash)) {
         return { ok: false, error: 'Incorrect room password' };
       }
@@ -1379,7 +1380,10 @@ export class GameManager {
   public registerWsClient(ws: WebSocket, userId: string): WsClientMeta {
     const meta: WsClientMeta = { ws, userId, roomId: null, tournamentId: null };
     this.clients.add(meta);
-    this.dataStore.onlineUsers.set(userId, { lastPing: Date.now() });
+    this.dataStore.onlineUsers.set(userId, {
+      ...(this.dataStore.onlineUsers.get(userId) ?? {}),
+      lastPing: Date.now(),
+    });
     return meta;
   }
 
