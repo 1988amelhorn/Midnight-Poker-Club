@@ -336,6 +336,47 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     return res.json(result);
   });
 
+  // Virtual-chip prize selection is server-side and atomic in Supabase,
+  // so a user cannot choose their own prize or claim twice in one UTC day.
+  app.get('/api/wheel/status', requireAuth, async (req: AuthedRequest, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Sign in with your Supabase account to spin.' });
+    const uid = req.authUser!.profile.id;
+    const { data, error } = await db.from('daily_wheel_claims')
+      .select('spin_day,prize').eq('uid', uid)
+      .order('spin_day', { ascending: false }).limit(1).maybeSingle();
+    if (error) return res.status(503).json({ error: 'Prize wheel temporarily unavailable' });
+    const today = new Date().toISOString().slice(0, 10);
+    return res.json({
+      canSpin: data?.spin_day !== today,
+      lastPrize: data?.prize || null,
+      nextSpinAt: data?.spin_day === today ? new Date(Date.parse(today + 'T00:00:00Z') + 86400000).toISOString() : null,
+    });
+  });
+
+  app.post('/api/wheel/spin', requireAuth, rateLimit(5, 60_000), async (req: AuthedRequest, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const db = friendsDb(req);
+    if (!db) return res.status(503).json({ error: 'Sign in with your Supabase account to spin.' });
+    const { data, error } = await db.rpc('spin_midnight_wheel');
+    if (error) {
+      if (/already claimed|duplicate key/i.test(error.message)) {
+        return res.status(409).json({ error: 'You have already spun today. Try again tomorrow (UTC).' });
+      }
+      return res.status(503).json({ error: 'Prize wheel temporarily unavailable. No chips were awarded.' });
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || !Number.isFinite(Number(row.prize))) {
+      return res.status(503).json({ error: 'Could not verify prize. Please refresh wallet.' });
+    }
+    return res.json({
+      prize: Number(row.prize),
+      balance: Number(row.chip_balance),
+      nextSpinAt: row.next_spin_at,
+    });
+  });
+
   app.post('/api/wallet/transfer', requireAuth, rateLimit(20, 60_000), (req: AuthedRequest, res) => {
     const { recipientId, amount, idempotencyKey } = req.body || {};
     const result = dataStore.transferChipsBetweenFriends(
