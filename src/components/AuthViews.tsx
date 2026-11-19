@@ -206,8 +206,8 @@ export const AuthViews: React.FC<{
 
             <div className="relative mx-auto w-56 h-56 rounded-[28px] overflow-hidden border-2 border-cyan-400/50 shadow-[0_0_45px_rgba(34,211,238,0.28)] bg-slate-950">
               <img
-                src="/src/assets/images/poker_club_logo_art_1795020140566.jpg"
-                alt="Midnight Poker Club Aces and Chips"
+                src="/midnight-login-logo.webp"
+                alt="Midnight Poker Club moon, crowned poker chip and neon skyline logo"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
@@ -373,6 +373,11 @@ export const AuthViews: React.FC<{
         {/* Login Screen */}
         {mode === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
+            <img
+              src="/midnight-login-logo.webp"
+              alt="Midnight Poker Club neon logo"
+              className="w-40 h-40 object-contain rounded-2xl mx-auto border border-cyan-400/35 shadow-[0_0_24px_rgba(34,211,238,0.20)]"
+            />
             <div>
               <h2 className="text-2xl font-display font-bold text-white">Welcome Back</h2>
               <p className="text-xs text-slate-400 mt-0.5">Sign in to resume your virtual tables and tournaments</p>
