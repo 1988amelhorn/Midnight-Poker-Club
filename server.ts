@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { ServerDataStore, type StoredUserRecord } from './server/dataStore.ts';
 import { GameManager, type GameManagerOptions } from './server/gameManager.ts';
+import { listPersistentFriends, sendPersistentFriendRequest, respondPersistentFriendRequest, removePersistentFriend, arePersistentFriends } from './server/friendPersistence.ts';
 import type { BotDifficulty } from './src/shared/types.ts';
 import {
   hasSupabasePublicKey,
@@ -93,6 +94,22 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
       lastPing: Date.now(),
     });
     return next();
+  }
+
+  function friendsDb(req: AuthedRequest) {
+    if (!isSupabaseAuthEnabled) return null;
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    // Local email/password sessions are two-part HMAC tokens, while Supabase
+    // OAuth access tokens are three-part JWTs. Preserve local-only test mode.
+    if (token.split('.').length !== 3) return null;
+    return createSupabaseUserClient(token);
+  }
+
+  function friendsError(res: Response, error: unknown) {
+    // No fallback to in-memory friendships when the database is unavailable:
+    // doing so would falsely report a successful cross-server friend request.
+    console.warn('Friends database operation failed', error);
+    return res.status(503).json({ error: 'Friends service temporarily unavailable. Please try again.' });
   }
 
   function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
@@ -331,11 +348,15 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     return res.status(201).json({ room: latestRoom, wallet: req.authUser!.wallet });
   });
 
-  app.post('/api/rooms/join', requireAuth, (req: AuthedRequest, res) => {
+  app.post('/api/rooms/join', requireAuth, async (req: AuthedRequest, res) => {
     const { roomIdOrCode, password, buyinAmount, friendId } = req.body || {};
     const friend = typeof friendId === 'string' ? friendId : '';
     const targetRoom = gameManager.rooms.get(String(roomIdOrCode || ''));
-    const acceptedFriend = Boolean(friend && dataStore.areFriends(req.authUser!.profile.id, friend));
+    let acceptedFriend = Boolean(friend && dataStore.areFriends(req.authUser!.profile.id, friend));
+    if (friend && friendsDb(req)) {
+      try { acceptedFriend = await arePersistentFriends(friendsDb(req)!, req.authUser!.profile.id, friend); }
+      catch (error) { return friendsError(res, error); }
+    }
     const friendInvited = Boolean(targetRoom && acceptedFriend &&
       (targetRoom.hostId === friend ||
         targetRoom.pokerEngine?.seats.some((s) => s.userId === friend) ||
@@ -373,16 +394,22 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
 
   // Read-only live spectator view. Only an accepted friend of a seated human
   // may watch. Never place the viewer at the table or expose private room codes.
-  app.get('/api/rooms/:id/spectate', requireAuth, (req: AuthedRequest, res) => {
+  app.get('/api/rooms/:id/spectate', requireAuth, async (req: AuthedRequest, res) => {
     const viewerId = req.authUser!.profile.id;
     const friendId = String(req.query.friendId || '');
     const room = gameManager.rooms.get(String(req.params.id));
     if (!room || room.status === 'closed') {
       return res.status(404).json({ error: 'This game is no longer available' });
     }
-    if (!friendId || friendId === viewerId || !dataStore.areFriends(viewerId, friendId)) {
+    if (!friendId || friendId === viewerId) {
       return res.status(403).json({ error: 'Only accepted friends may spectate this game' });
     }
+    let acceptedFriend = dataStore.areFriends(viewerId, friendId);
+    if (friendsDb(req)) {
+      try { acceptedFriend = await arePersistentFriends(friendsDb(req)!, viewerId, friendId); }
+      catch (error) { return friendsError(res, error); }
+    }
+    if (!acceptedFriend) return res.status(403).json({ error: 'Only accepted friends may spectate this game' });
     const friendIsPlaying = room.pokerEngine?.seats.some((s) => s.userId === friendId)
       || room.blackjackEngine?.seats.some((s) => s.userId === friendId);
     if (!friendIsPlaying) {
@@ -556,22 +583,32 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
   });
 
   // FRIENDS & INVITES
-  app.get('/api/friends', requireAuth, (req: AuthedRequest, res) => {
+  app.get('/api/friends', requireAuth, async (req: AuthedRequest, res) => {
+    res.setHeader('Cache-Control', 'no-store');
     const uid = req.authUser!.profile.id;
-    const incoming = Array.from(dataStore.friendRequests.values()).filter((r) => r.receiverId === uid && r.status === 'pending');
-    const outgoing = Array.from(dataStore.friendRequests.values()).filter((r) => r.senderId === uid && r.status === 'pending');
-    res.json({
+    const db = friendsDb(req);
+    if (db) {
+      try { return res.json(await listPersistentFriends(db, uid, dataStore)); }
+      catch (error) { return friendsError(res, error); }
+    }
+    return res.json({
       friends: dataStore.getFriendsList(uid),
-      incomingRequests: incoming,
-      outgoingRequests: outgoing,
+      incomingRequests: Array.from(dataStore.friendRequests.values()).filter((r) => r.receiverId === uid && r.status === 'pending'),
+      outgoingRequests: Array.from(dataStore.friendRequests.values()).filter((r) => r.senderId === uid && r.status === 'pending'),
     });
   });
 
   // A friend may see a friend's active table, or a private table that their
   // friend owns even after a hand ends and everyone has temporarily left.
-  app.get('/api/friends/tables', requireAuth, (req: AuthedRequest, res) => {
+  app.get('/api/friends/tables', requireAuth, async (req: AuthedRequest, res) => {
     const viewerId = req.authUser!.profile.id;
-    const friends = dataStore.getFriendsList(viewerId).map((friend) => {
+    let roster = dataStore.getFriendsList(viewerId);
+    const db = friendsDb(req);
+    if (db) {
+      try { roster = (await listPersistentFriends(db, viewerId, dataStore)).friends; }
+      catch (error) { return friendsError(res, error); }
+    }
+    const friends = roster.map((friend) => {
       const current = friend.currentRoomId ? gameManager.rooms.get(friend.currentRoomId) : null;
       const room = current && current.status !== 'closed' ? current
         : Array.from(gameManager.rooms.values()).find((r) =>
@@ -596,8 +633,41 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
 
   // Public-facing player card: never expose email, roles, wallet tokens, or
   // private account details. Require a session and disable response caching.
-  app.get('/api/players/:id/profile', requireAuth, (req: AuthedRequest, res) => {
+  app.get('/api/players/:id/profile', requireAuth, async (req: AuthedRequest, res) => {
     const playerId = String(req.params.id || '');
+    const db = friendsDb(req);
+    if (db) {
+      const { data: profile, error } = await db.from('profiles')
+        .select('uid,username,avatar_url,created_at,total_hands_played,hands_won,blackjack_wins,tournament_wins')
+        .eq('uid', playerId).maybeSingle();
+      if (error) return friendsError(res, error);
+      if (!profile) return res.status(404).json({ error: 'Player not found' });
+      const friendList = await listPersistentFriends(db, req.authUser!.profile.id, dataStore).catch(() => null);
+      if (!friendList) return res.status(503).json({ error: 'Player profiles temporarily unavailable' });
+      const isFriend = friendList.friends.some((p) => p.userId === playerId);
+      const friendRequestPending = [...friendList.incomingRequests, ...friendList.outgoingRequests].some((r) =>
+        r.senderId === playerId || r.receiverId === playerId
+      );
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json({
+        profile: {
+          id: profile.uid, username: profile.username, avatarId: profile.avatar_url || 'ace-spade',
+          level: 1, xp: 0, bio: '', createdAt: profile.created_at,
+        },
+        stats: {
+          userId: profile.uid,
+          pokerHandsPlayed: profile.total_hands_played || 0,
+          pokerHandsWon: profile.hands_won || 0,
+          blackjackHandsPlayed: 0,
+          blackjackHandsWon: profile.blackjack_wins || 0,
+          blackjackBlackjacks: 0,
+          tournamentsPlayed: 0,
+          tournamentsWon: profile.tournament_wins || 0,
+          totalGamesPlayed: profile.total_hands_played || 0,
+        },
+        isFriend, isSelf: profile.uid === req.authUser!.profile.id, friendRequestPending,
+      });
+    }
     const record = dataStore.users.get(playerId);
     if (!record || record.profile.isSuspended) {
       return res.status(404).json({ error: 'Player not found' });
@@ -650,28 +720,30 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
       });
     }
 
-    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-    const db = supabaseAdmin ?? createSupabaseUserClient(token);
+    const db = friendsDb(req);
     if (db) {
       // Escape ilike wildcards so searches are literal usernames, not patterns.
       const literal = q.replace(/[\\%_]/g, (char) => '\\' + char);
       const { data, error } = await db
         .from('profiles')
-        .select('id, username, avatar_id, level')
+        .select('uid, username, avatar_url')
         .ilike('username', `%${literal}%`)
-        .neq('id', uid)
+        .neq('uid', uid)
         .limit(20);
       if (error) {
         // Do not silently claim no users exist when the profiles table is inaccessible.
         if (!found.size) return res.status(503).json({ error: 'Player directory unavailable. Try again shortly.' });
       } else {
+        const friendLinks = await db.from('friends').select('friend_uid').eq('uid', uid);
+        if (friendLinks.error) return res.status(503).json({ error: 'Friends directory temporarily unavailable' });
+        const friendIds = new Set((friendLinks.data || []).map((link) => link.friend_uid));
         for (const p of data || []) {
-          found.set(p.id, {
-            userId: p.id,
+          found.set(p.uid, {
+            userId: p.uid,
             username: p.username,
-            avatarId: p.avatar_id || 'ace-spade',
-            level: p.level || 1,
-            isFriend: dataStore.areFriends(uid, p.id),
+            avatarId: p.avatar_url || 'ace-spade',
+            level: dataStore.users.get(p.uid)?.profile.level || 1,
+            isFriend: friendIds.has(p.uid),
           });
         }
       }
@@ -679,22 +751,43 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     return res.json({ players: Array.from(found.values()).slice(0, 20) });
   });
 
-  app.post('/api/friends/request', requireAuth, (req: AuthedRequest, res) => {
-    const result = dataStore.sendFriendRequest(req.authUser!.profile.id, String(req.body?.receiverId || ''));
+  app.post('/api/friends/request', requireAuth, rateLimit(20, 60_000), async (req: AuthedRequest, res) => {
+    const receiverId = String(req.body?.receiverId || '');
+    const db = friendsDb(req);
+    let result;
+    if (db) {
+      try { result = await sendPersistentFriendRequest(db, req.authUser!.profile.id, receiverId); }
+      catch (error) { return friendsError(res, error); }
+    } else {
+      result = dataStore.sendFriendRequest(req.authUser!.profile.id, receiverId);
+    }
     if (!result.ok) return res.status(400).json({ error: result.error });
-    gameManager.notifyUser(String(req.body?.receiverId), { type: 'notifications:refresh' });
+    gameManager.notifyUser(receiverId, { type: 'notifications:refresh' });
     return res.status(201).json(result);
   });
 
-  app.post('/api/friends/requests/:id/respond', requireAuth, (req: AuthedRequest, res) => {
-    const result = dataStore.respondFriendRequest(String(req.params.id), req.authUser!.profile.id, Boolean(req.body?.accept));
+  app.post('/api/friends/requests/:id/respond', requireAuth, async (req: AuthedRequest, res) => {
+    const db = friendsDb(req);
+    let result;
+    if (db) {
+      try { result = await respondPersistentFriendRequest(db, req.authUser!.profile.id, String(req.params.id), Boolean(req.body?.accept)); }
+      catch (error) { return friendsError(res, error); }
+    } else {
+      result = dataStore.respondFriendRequest(String(req.params.id), req.authUser!.profile.id, Boolean(req.body?.accept));
+    }
     if (!result.ok) return res.status(400).json({ error: result.error });
     return res.json(result);
   });
 
-  app.delete('/api/friends/:friendId', requireAuth, (req: AuthedRequest, res) => {
-    dataStore.removeFriend(req.authUser!.profile.id, String(req.params.friendId));
-    res.json({ ok: true });
+  app.delete('/api/friends/:friendId', requireAuth, async (req: AuthedRequest, res) => {
+    const db = friendsDb(req);
+    if (db) {
+      try { await removePersistentFriend(db, req.authUser!.profile.id, String(req.params.friendId)); }
+      catch (error) { return friendsError(res, error); }
+    } else {
+      dataStore.removeFriend(req.authUser!.profile.id, String(req.params.friendId));
+    }
+    return res.json({ ok: true });
   });
 
   app.post('/api/friends/:friendId/invite', requireAuth, (req: AuthedRequest, res) => {
