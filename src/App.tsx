@@ -17,6 +17,7 @@ import {
   Wifi,
 } from 'lucide-react';
 import { AuthViews, type AuthScreenMode } from './components/AuthViews.tsx';
+import { OwnerDashboardView } from './components/OwnerDashboardView.tsx';
 import { FriendSpectatorView } from './components/FriendSpectatorView.tsx';
 import { BlackjackTableView } from './components/BlackjackTableView.tsx';
 import {
@@ -105,6 +106,7 @@ const ClubShell: React.FC = () => {
   const { reconnecting, friendRequestRefreshVersion } = useGameSocket();
 
   const [screen, setScreen] = useState<AppScreen>('lobby');
+  const [isOwner, setIsOwner] = useState(false);
   const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
   const [friendRequestRefresh, setFriendRequestRefresh] = useState(0);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
@@ -112,6 +114,15 @@ const ClubShell: React.FC = () => {
   const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
   const [tournamentTab, setTournamentTab] = useState<'lobby' | 'info' | 'standings' | 'winner'>('lobby');
   const [prefillJoinCode, setPrefillJoinCode] = useState('');
+
+  useEffect(() => {
+    if (!user) { setIsOwner(false); return; }
+    let active = true;
+    void apiFetch<{ isOwner: boolean }>('/api/owner/status')
+      .then((result) => { if (active) setIsOwner(Boolean(result.isOwner)); })
+      .catch(() => { if (active) setIsOwner(false); });
+    return () => { active = false; };
+  }, [user?.id]);
 
   // Keep the home and mobile Friends badges in sync with accepted/rejected requests.
   useEffect(() => {
@@ -412,7 +423,7 @@ const ClubShell: React.FC = () => {
 
       {/* Main Content Workspace */}
       <main className="flex-1 pb-20 md:pb-8">
-        {screen === 'lobby' && <MainLobbyView onNavigate={handleNavigate} pendingFriendRequests={pendingFriendRequests} />}
+        {screen === 'lobby' && <MainLobbyView onNavigate={handleNavigate} pendingFriendRequests={pendingFriendRequests} isOwner={isOwner} />}
 
         {screen === 'holdem_browser' && (
           <RoomBrowserView
@@ -543,6 +554,7 @@ const ClubShell: React.FC = () => {
         {screen === 'daily_bonus' && <DailyBonusView onBack={() => setScreen('lobby')} />}
         {screen === 'settings' && <SettingsView onBack={() => setScreen('profile')} />}
         {screen === 'admin' && <AdminDashboardView onBack={() => setScreen('lobby')} />}
+        {screen === 'owner' && <OwnerDashboardView onBack={() => setScreen('lobby')} />}
       </main>
 
       {/* Subtle Virtual-Only Footer */}
