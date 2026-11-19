@@ -361,6 +361,42 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     });
   });
 
+  // Read-only live spectator view. Only an accepted friend of a seated human
+  // may watch. Never place the viewer at the table or expose private room codes.
+  app.get('/api/rooms/:id/spectate', requireAuth, (req: AuthedRequest, res) => {
+    const viewerId = req.authUser!.profile.id;
+    const friendId = String(req.query.friendId || '');
+    const room = gameManager.rooms.get(String(req.params.id));
+    if (!room || room.status === 'closed') {
+      return res.status(404).json({ error: 'This game is no longer available' });
+    }
+    if (!friendId || friendId === viewerId || !dataStore.areFriends(viewerId, friendId)) {
+      return res.status(403).json({ error: 'Only accepted friends may spectate this game' });
+    }
+    const friendIsPlaying = room.pokerEngine?.seats.some((s) => s.userId === friendId)
+      || room.blackjackEngine?.seats.some((s) => s.userId === friendId);
+    if (!friendIsPlaying) {
+      return res.status(403).json({ error: 'Your friend is no longer at this table' });
+    }
+    const poker = room.pokerEngine ? room.pokerEngine.toPlayerView(viewerId) : null;
+    if (poker) {
+      // Spectators have no valid actions or personal hand odds.
+      poker.legalActions = null;
+      poker.handStrength = null;
+      for (const seat of poker.seats) {
+        // Cards are only visible at a legitimate public showdown.
+        if (poker.street !== 'showdown') seat.holeCards = null;
+      }
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      room: { ...gameManager.summarizeRoom(room), code: '' },
+      poker,
+      blackjack: room.blackjackEngine ? room.blackjackEngine.toTableView() : null,
+      friendId,
+    });
+  });
+
   app.post('/api/rooms/:id/leave', requireAuth, (req: AuthedRequest, res) => {
     const result = gameManager.leaveRoom(req.authUser!.profile.id, String(req.params.id));
     res.json({ ...result, wallet: req.authUser!.wallet });
