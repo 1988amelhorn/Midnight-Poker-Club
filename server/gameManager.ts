@@ -988,7 +988,7 @@ export class GameManager {
       isBot: false,
     });
 
-    const requestedBots = Math.max(0, Math.min(8, Math.floor(params.initialBots ?? 0)));
+    const requestedBots = Math.max(0, Math.min(90, Math.floor(params.initialBots ?? 0)));
     for (let i = 0; i < requestedBots; i++) {
       const usedNames = new Set(Array.from(tourn.players.values()).map((p) => p.username));
       const persona = this.pickBotPersona(usedNames);
