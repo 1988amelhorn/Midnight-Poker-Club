@@ -41,6 +41,7 @@ export type AppScreen =
   | 'history'
   | 'wallet'
   | 'daily_bonus'
+  | 'daily_wheel'
   | 'settings'
   | 'admin'
   | 'owner';
@@ -182,6 +183,20 @@ export const MainLobbyView: React.FC<{
           >
             Claim
           </button>
+        </div>
+
+        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-fuchsia-500/20 border border-fuchsia-400/60 flex items-center justify-center text-fuchsia-200">
+              <Gift className="w-5 h-5"/>
+            </div>
+            <div>
+              <h3 className="text-sm font-display font-bold text-white">Daily Midnight Prize Wheel</h3>
+              <p className="text-xs text-slate-400">Spin once a day · rare 1,000,000 virtual-chip jackpot</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => onNavigate('daily_wheel')}
+            className="btn-glossy btn-glossy-purple rounded-full px-4 py-2 text-white font-extrabold text-xs shrink-0">Spin</button>
         </div>
 
         <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
