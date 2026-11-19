@@ -229,9 +229,10 @@ export const PlayerProfileView: React.FC<{
 };
 
 // 20. FRIENDS & CHIP GIFTS
-export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (roomId: string) => void }> = ({
+export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (roomId: string) => void; onWatchFriendRoom: (roomId: string, friendId: string, username: string) => void }> = ({
   onBack,
   onJoinFriendRoom,
+  onWatchFriendRoom,
 }) => {
   const { refreshWallet } = useAuth();
   const [friends, setFriends] = useState<FriendItem[]>([]);
@@ -385,6 +386,15 @@ export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (room
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {f.currentRoomId && (
+                  <button
+                    type="button"
+                    onClick={() => onWatchFriendRoom(f.currentRoomId!, f.userId, f.username)}
+                    className="btn-glossy px-3 py-1.5 rounded-full text-xs font-bold text-cyan-100 border border-cyan-500/50 bg-cyan-900/60"
+                  >
+                    Watch Game
+                  </button>
+                )}
                 {f.currentRoomId && (
                   <button
                     type="button"
