@@ -1,0 +1,23 @@
+name: Live multiplayer smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install WebSocket client
+        run: npm install --no-audit --no-fund
+      - name: Test live production multiplayer
+        env:
+          SMOKE_URL: https://midnight-poker-club.vercel.app
+        run: node scripts/production-smoke.mjs
