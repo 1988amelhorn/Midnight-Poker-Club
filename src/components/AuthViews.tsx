@@ -192,6 +192,14 @@ export const AuthViews: React.FC<{
           </div>
         )}
 
+        {(mode === 'welcome' || mode === 'login' || mode === 'signup') && (
+          <div className="text-center mb-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-300/30 bg-violet-300/10 px-3.5 py-1.5 text-[11px] font-semibold tracking-[0.12em] text-violet-100/90 shadow-[0_0_13px_rgba(168,85,247,0.18)]">
+              CREATED BY <span className="font-extrabold text-amber-200">A.M.</span>
+            </span>
+          </div>
+        )}
+
         {/* Welcome Screen */}
         {mode === 'welcome' && (
           <div className="text-center space-y-6">
@@ -550,13 +558,6 @@ export const AuthViews: React.FC<{
           </form>
         )}
 
-        {(mode === 'welcome' || mode === 'login' || mode === 'signup') && (
-          <div className="mt-6 pt-4 border-t border-violet-300/15 text-center">
-            <p className="text-[11px] tracking-[0.16em] uppercase font-medium text-slate-400/85">
-              Created by <span className="text-violet-200/90 font-semibold">A.M.</span>
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Supabase Credentials & OAuth Setup Guidance Modal */}
