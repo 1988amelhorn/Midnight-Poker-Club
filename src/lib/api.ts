@@ -1,5 +1,33 @@
 const TOKEN_STORAGE_KEY = 'npc_session_token';
 
+/**
+ * Keep same-origin API calls by default. When the static frontend is hosted
+ * separately, VITE_API_BASE_URL points to the HTTPS backend origin (optionally
+ * including a reverse-proxy prefix).
+ */
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\\/+$/, '');
+
+export function apiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
+export function websocketUrl(token: string): string {
+  const configured = (import.meta.env.VITE_WS_URL || '').trim();
+  let endpoint: URL;
+  if (configured) {
+    endpoint = new URL(configured, window.location.href);
+  } else {
+    const origin = API_BASE_URL
+      ? new URL(API_BASE_URL, window.location.origin)
+      : new URL(window.location.origin);
+    origin.protocol = origin.protocol === 'https:' ? 'wss:' : 'ws:';
+    endpoint = new URL(`${origin.pathname.replace(/\\/+$/, '')}/ws`, origin.origin);
+  }
+  endpoint.searchParams.set('token', token);
+  return endpoint.toString();
+}
+
 export function getStoredToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -30,7 +58,7 @@ export async function apiFetch<T = any>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     ...options,
     headers,
   });
