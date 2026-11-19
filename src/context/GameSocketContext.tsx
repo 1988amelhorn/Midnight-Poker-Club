@@ -8,7 +8,7 @@ import type {
   PokerTableView,
   TournamentSummary,
 } from '../shared/types.ts';
-import { apiFetch, makeIdempotencyKey } from '../lib/api.ts';
+import { apiFetch, makeIdempotencyKey, websocketUrl } from '../lib/api.ts';
 import { useAuth } from './AuthContext.tsx';
 
 interface GameSocketContextValue {
@@ -100,8 +100,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const connect = () => {
       if (closedIntentionally) return;
-      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${proto}//${window.location.host}/ws?token=${encodeURIComponent(token)}`);
+      const ws = new WebSocket(websocketUrl(token));
       wsRef.current = ws;
 
       ws.onopen = () => {
