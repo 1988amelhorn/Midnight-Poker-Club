@@ -327,6 +327,7 @@ export class GameManager {
     userId: string;
     roomIdOrCode: string;
     password?: string;
+    friendInvited?: boolean;
     buyinAmount?: number;
   }): { ok: boolean; room?: GameRoomSummary; error?: string } {
     const cleanRef = params.roomIdOrCode.trim();
@@ -367,7 +368,7 @@ export class GameManager {
     }
 
     // Validate password for password-protected private rooms
-    if (room.passwordHash) {
+    if (room.passwordHash && !params.friendInvited) {
       if (!params.password || !this.dataStore.verifyPassword(params.password, room.passwordHash)) {
         return { ok: false, error: 'Incorrect room password' };
       }
