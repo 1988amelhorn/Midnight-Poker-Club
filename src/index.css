@@ -60,7 +60,12 @@
     inset 0 2px 2px rgba(255, 255, 255, 0.42),
     inset 0 -3px 5px rgba(0, 0, 0, 0.36),
     0 8px 22px rgba(0, 0, 0, 0.45);
-  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1), filter 150ms ease, box-shadow 150ms ease;
+  /* Overshooting curve makes the release spring back like a casino button. */
+  transition:
+    transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 160ms ease,
+    box-shadow 200ms ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn-glossy::before {
@@ -77,11 +82,25 @@
 
 .btn-glossy:hover:not(:disabled) {
   filter: brightness(1.09);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
+/* Bouncy press: squish down instantly, then spring back on release. */
 .btn-glossy:active:not(:disabled) {
-  transform: translateY(1px) scale(0.98);
+  transform: translateY(2px) scale(0.93);
+  filter: brightness(1.18);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.45),
+    0 0 30px rgba(56, 189, 248, 0.55);
+  transition:
+    transform 90ms cubic-bezier(0.4, 0, 0.6, 1),
+    filter 90ms ease,
+    box-shadow 90ms ease;
+}
+
+.btn-glossy:focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.9);
+  outline-offset: 3px;
 }
 
 .btn-glossy-green {
@@ -216,9 +235,76 @@
   animation: winnerSpotlight 1.1s ease-in-out infinite;
 }
 
+/* Rotating neon border for hero panels and menus */
+@property --glow-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.glow-border-animated {
+  position: relative;
+}
+
+.glow-border-animated::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--glow-angle),
+    rgba(34, 211, 238, 0.9) 0deg,
+    rgba(168, 85, 247, 0.85) 90deg,
+    rgba(236, 72, 153, 0.7) 190deg,
+    rgba(250, 204, 21, 0.85) 280deg,
+    rgba(34, 211, 238, 0.9) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: spinGlowAngle 11s linear infinite;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+@keyframes spinGlowAngle {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+
+/* Slow ambient neon breathing for large surfaces */
+@keyframes neonBreathe {
+  0%,
+  100% {
+    box-shadow:
+      0 14px 36px rgba(0, 0, 0, 0.58),
+      0 0 24px rgba(56, 189, 248, 0.16),
+      0 0 40px rgba(168, 85, 247, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 16px 42px rgba(0, 0, 0, 0.62),
+      0 0 34px rgba(56, 189, 248, 0.3),
+      0 0 62px rgba(168, 85, 247, 0.24);
+  }
+}
+
+.animate-neon-breathe {
+  animation: neonBreathe 5.5s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-turn-ring,
-  .animate-winner-spotlight {
+  .animate-winner-spotlight,
+  .animate-neon-breathe,
+  .glow-border-animated::before {
     animation: none !important;
   }
 }

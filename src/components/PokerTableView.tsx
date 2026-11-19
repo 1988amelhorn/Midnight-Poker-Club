@@ -34,6 +34,7 @@ import {
   type LastHoldemHandSummary,
 } from '../shared/pokerEvaluator.ts';
 import { PlayerAvatar } from '../utils/avatars.tsx';
+import { celebrateWin } from '../utils/celebrate.ts';
 import { soundEngine } from '../utils/soundEngine.ts';
 import { ChipStack } from './ChipStack.tsx';
 import { PlayingCard } from './PlayingCard.tsx';
@@ -217,9 +218,13 @@ export const PokerTableView: React.FC<{
         if (soundEngine.shouldPlayOnce(`win:${wKey}`)) {
           soundEngine.playHandWin();
         }
+        celebrateWin(
+          pokerState.winners.some((w) => w.userId === user?.id) ? 'big' : 'hand',
+          !prefersReducedMotion
+        );
       }
     }
-  }, [pokerState, revealedBoardCount]);
+  }, [pokerState, revealedBoardCount, prefersReducedMotion, user?.id]);
 
   // Turn countdown warning sound at <= 5s
   const turnSecondsLeft = useMemo(() => {

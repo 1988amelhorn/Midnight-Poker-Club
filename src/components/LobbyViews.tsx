@@ -80,7 +80,7 @@ export const MainLobbyView: React.FC<{
       )}
 
       {/* Midnight Skyline Hero Banner */}
-      <div className="relative rounded-[34px] overflow-hidden border-2 border-cyan-400/45 shadow-[0_0_55px_rgba(34,211,238,0.2),0_0_80px_rgba(168,85,247,0.16)] min-h-[210px] sm:min-h-[245px] flex flex-col items-center justify-center text-center p-6">
+      <div className="relative rounded-[34px] overflow-hidden border-2 border-cyan-400/45 animate-neon-breathe shadow-[0_0_55px_rgba(34,211,238,0.2),0_0_80px_rgba(168,85,247,0.16)] min-h-[210px] sm:min-h-[245px] flex flex-col items-center justify-center text-center p-6">
         <img
           src="/src/assets/images/neon_hero_skyline_1795020140555.jpg"
           alt="Midnight Poker Club Skyline"
@@ -114,7 +114,7 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('holdem_browser')}
-          className="group relative rounded-[28px] border-2 border-purple-400/75 bg-gradient-to-b from-purple-900/65 via-[#140e31]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(168,85,247,0.28)] hover:border-purple-300 hover:scale-[1.02] transition"
+          className="group relative btn-glossy rounded-[28px] border-2 border-purple-400/75 bg-gradient-to-b from-purple-900/65 via-[#140e31]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(168,85,247,0.28)] hover:border-purple-300 hover:scale-[1.02] transition"
         >
           <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-purple-500/20 border border-purple-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(168,85,247,0.4)]">
             <Spade className="w-8 h-8 text-purple-200" />
@@ -126,7 +126,7 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('blackjack_browser')}
-          className="group relative rounded-[28px] border-2 border-rose-400/75 bg-gradient-to-b from-rose-900/65 via-[#2a0f20]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(244,63,94,0.28)] hover:border-rose-300 hover:scale-[1.02] transition"
+          className="group relative btn-glossy rounded-[28px] border-2 border-rose-400/75 bg-gradient-to-b from-rose-900/65 via-[#2a0f20]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(244,63,94,0.28)] hover:border-rose-300 hover:scale-[1.02] transition"
         >
           <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-rose-500/20 border border-rose-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(244,63,94,0.4)]">
             <Heart className="w-8 h-8 text-rose-200" />
@@ -138,7 +138,7 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('create_private')}
-          className="group relative rounded-[28px] border-2 border-sky-400/75 bg-gradient-to-b from-sky-900/65 via-[#0d1f3a]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(56,189,248,0.28)] hover:border-sky-300 hover:scale-[1.02] transition"
+          className="group relative btn-glossy rounded-[28px] border-2 border-sky-400/75 bg-gradient-to-b from-sky-900/65 via-[#0d1f3a]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(56,189,248,0.28)] hover:border-sky-300 hover:scale-[1.02] transition"
         >
           <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-sky-500/20 border border-sky-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(56,189,248,0.4)]">
             <Users className="w-8 h-8 text-sky-200" />
@@ -150,7 +150,7 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('tournament_browser')}
-          className="group relative rounded-[28px] border-2 border-amber-400/75 bg-gradient-to-b from-amber-900/60 via-[#291b0c]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(245,158,11,0.28)] hover:border-amber-300 hover:scale-[1.02] transition"
+          className="group relative btn-glossy rounded-[28px] border-2 border-amber-400/75 bg-gradient-to-b from-amber-900/60 via-[#291b0c]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(245,158,11,0.28)] hover:border-amber-300 hover:scale-[1.02] transition"
         >
           <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(245,158,11,0.4)]">
             <Trophy className="w-8 h-8 text-amber-200" />
