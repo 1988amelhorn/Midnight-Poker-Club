@@ -169,7 +169,7 @@ export const AuthViews: React.FC<{
       <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[540px] h-[540px] rounded-full bg-cyan-500/18 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-24 right-1/4 w-[440px] h-[440px] rounded-full bg-purple-600/22 blur-[120px]" />
 
-      <div className="relative z-10 w-full max-w-md rounded-[32px] glass-bubbly border-2 border-cyan-400/35 p-6 sm:p-8 shadow-[0_0_50px_rgba(56,189,248,0.22),0_20px_50px_rgba(0,0,0,0.8)]">
+      <div className="neon-casino-panel relative z-10 w-full max-w-md rounded-[32px] glass-bubbly border-2 border-cyan-400/35 p-6 sm:p-8 shadow-[0_0_50px_rgba(56,189,248,0.22),0_20px_50px_rgba(0,0,0,0.8)]">
         {mode !== 'welcome' && (
           <div className="flex items-center justify-between gap-2 mb-5">
             <button
@@ -196,7 +196,7 @@ export const AuthViews: React.FC<{
         {mode === 'welcome' && (
           <div className="text-center space-y-6">
             <div className="space-y-1">
-              <h1 className="text-4xl font-display font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-sky-400 to-purple-400 bg-clip-text text-transparent drop-shadow-[0_0_22px_rgba(34,211,238,0.6)]">
+              <h1 className="neon-casino-heading text-4xl font-display font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-sky-400 to-purple-400 bg-clip-text text-transparent drop-shadow-[0_0_22px_rgba(34,211,238,0.6)]">
                 MIDNIGHT
               </h1>
               <p className="text-sm font-display font-bold tracking-[0.26em] text-amber-300 uppercase drop-shadow-[0_0_12px_rgba(250,204,21,0.45)]">
