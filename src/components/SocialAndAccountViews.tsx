@@ -229,8 +229,9 @@ export const PlayerProfileView: React.FC<{
 };
 
 // 20. FRIENDS & CHIP GIFTS
-export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (roomId: string, friendId: string) => void; onWatchFriendRoom: (roomId: string, friendId: string, username: string) => void }> = ({
+export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () => void; onJoinFriendRoom: (roomId: string, friendId: string) => void; onWatchFriendRoom: (roomId: string, friendId: string, username: string) => void }> = ({
   onBack,
+  onRequestsChanged,
   onJoinFriendRoom,
   onWatchFriendRoom,
 }) => {
@@ -280,8 +281,14 @@ export const FriendsView: React.FC<{ onBack: () => void; onJoinFriendRoom: (room
   };
 
   const respondRequest = async (id: string, accept: boolean) => {
-    await apiFetch(`/api/friends/requests/${id}/respond`, { method: 'POST', body: JSON.stringify({ accept }) });
-    await loadFriends();
+    try {
+      await apiFetch(`/api/friends/requests/${id}/respond`, { method: 'POST', body: JSON.stringify({ accept }) });
+      setIncoming((items) => items.filter((item) => item.id !== id));
+      onRequestsChanged?.();
+      await loadFriends();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Unable to respond to request');
+    }
   };
 
   const sendGift = async () => {
