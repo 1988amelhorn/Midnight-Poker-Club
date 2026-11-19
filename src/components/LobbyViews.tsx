@@ -42,12 +42,14 @@ export type AppScreen =
   | 'wallet'
   | 'daily_bonus'
   | 'settings'
-  | 'admin';
+  | 'admin'
+  | 'owner';
 
 export const MainLobbyView: React.FC<{
   onNavigate: (screen: AppScreen, param?: string) => void;
   pendingFriendRequests?: number;
-}> = ({ onNavigate, pendingFriendRequests = 0 }) => {
+  isOwner?: boolean;
+}> = ({ onNavigate, pendingFriendRequests = 0, isOwner = false }) => {
   const { user, wallet, activeRoom, stats } = useAuth();
   const { lobbyRooms, lobbyTournaments, refreshLobby } = useGameSocket();
 
@@ -219,6 +221,20 @@ export const MainLobbyView: React.FC<{
           </button>
         </div>
       </div>
+
+      {isOwner && (
+        <button type="button" onClick={() => onNavigate('owner')}
+          className="neon-casino-panel glass-bubbly rounded-[25px] p-4 w-full flex items-center justify-between gap-3 text-left">
+          <span className="flex items-center gap-3">
+            <Shield className="w-7 h-7 text-amber-300"/>
+            <span>
+              <span className="block font-display font-extrabold text-white text-sm">Club Owner Dashboard</span>
+              <span className="block text-xs text-slate-300">Signups, online activity, and games recorded</span>
+            </span>
+          </span>
+          <span className="btn-glossy btn-glossy-gold rounded-full px-4 py-2 text-slate-950 font-bold text-xs">View</span>
+        </button>
+      )}
 
       {/* Friend requests and direct access to friends from the home screen. */}
       <button
