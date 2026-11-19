@@ -308,16 +308,44 @@ describe('Auth, Wallet Integrity, Private Rooms & Tournaments', () => {
       entryFee: 200,
     });
     expect(tourn.ok).toBe(true);
-    expect(u1.wallet.chipBalance).toBe(3800); // 4000 - 200 entry fee
+    expect(u1.wallet.chipBalance).toBe(4000); // tournaments never charge wallet chips
 
     const j2 = gm.joinTournament(u2.profile.id, tourn.tournament!.code);
     expect(j2.ok).toBe(true);
-    expect(u2.wallet.chipBalance).toBe(4800);
+    expect(u2.wallet.chipBalance).toBe(5000);
 
     const started = gm.startTournament(u1.profile.id, tourn.tournament!.id);
     expect(started.ok).toBe(true);
     expect(started.tournament!.status).toBe('in_progress');
     expect(started.tournament!.roomId).toBeTruthy();
+    expect(started.tournament!.roomIds).toHaveLength(1);
+    gm.cleanup();
+  });
+
+  it('starts an 18-person freeroll across two evenly seated tables with one entry per player', () => {
+    const store = new ServerDataStore();
+    const host = store.registerUser('tourn-host', 'strong-password', 'TableDirector');
+    expect(host.ok).toBe(true);
+    const gm = new GameManager(store, { botThinkDelayRangeMs: [30000, 30000] });
+    const created = gm.createTournament({
+      creatorId: host.user!.profile.id,
+      name: 'Midnight Championship',
+      maxPlayers: 18,
+      initialBots: 17,
+      startingChips: 5000,
+      entryFee: 1000,
+    });
+    expect(created.ok).toBe(true);
+    expect(created.tournament!.entryFee).toBe(0);
+    const before = store.users.get(host.user!.profile.id)!.wallet.chipBalance;
+    const started = gm.startTournament(host.user!.profile.id, created.tournament!.id);
+    expect(started.ok).toBe(true);
+    expect(started.tournament!.roomIds).toHaveLength(2);
+    expect(started.tournament!.tables.map(t => t.playerCount)).toEqual([9, 9]);
+    expect(started.tournament!.players.every(p => Boolean(p.roomId))).toBe(true);
+    expect(store.users.get(host.user!.profile.id)!.wallet.chipBalance).toBe(before);
+    expect(gm.joinTournament('new-player', created.tournament!.code).ok).toBe(false);
+    gm.cleanup();
   });
 
   it('enforces short all-in non-reopening raise rule in PokerTableEngine', () => {
