@@ -578,6 +578,11 @@ export class GameManager {
     }
 
     if (room.gameType === 'holdem' && room.pokerEngine) {
+      // Repeated Start requests must never wipe an in-progress hand or a
+      // completed showdown while its scheduled next hand is waiting.
+      if (room.status === 'active' && room.pokerEngine.street !== 'waiting') {
+        return { ok: true };
+      }
       if (!room.pokerEngine.canStartHand()) {
         return { ok: false, error: 'Need at least 2 active players with chips to start Texas Hold\'em' };
       }
@@ -590,6 +595,10 @@ export class GameManager {
     }
 
     if (room.gameType === 'blackjack' && room.blackjackEngine) {
+      // Do not clear cards or bets if Start is pressed mid-round.
+      if (room.status === 'active' && room.blackjackEngine.phase !== 'waiting') {
+        return { ok: true };
+      }
       if (room.blackjackEngine.seats.length < 1) {
         return { ok: false, error: 'Need at least 1 seated player to start Blackjack' };
       }
