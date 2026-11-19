@@ -331,11 +331,20 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
   });
 
   app.post('/api/rooms/join', requireAuth, (req: AuthedRequest, res) => {
-    const { roomIdOrCode, password, buyinAmount } = req.body || {};
+    const { roomIdOrCode, password, buyinAmount, friendId } = req.body || {};
+    const friend = typeof friendId === 'string' ? friendId : '';
+    const targetRoom = gameManager.rooms.get(String(roomIdOrCode || ''));
+    const acceptedFriend = Boolean(friend && dataStore.areFriends(req.authUser!.profile.id, friend));
+    const friendInvited = Boolean(targetRoom && acceptedFriend &&
+      (targetRoom.hostId === friend ||
+        targetRoom.pokerEngine?.seats.some((s) => s.userId === friend) ||
+        targetRoom.blackjackEngine?.seats.some((s) => s.userId === friend)));
+    if (friend && !friendInvited) return res.status(403).json({ error: 'Friend invitation is not valid for this table' });
     const joined = gameManager.joinRoom({
       userId: req.authUser!.profile.id,
       roomIdOrCode: String(roomIdOrCode || ''),
       password: password ? String(password) : undefined,
+      friendInvited,
       buyinAmount: buyinAmount !== undefined ? Number(buyinAmount) : undefined,
     });
     if (!joined.ok) return res.status(400).json({ error: joined.error });
@@ -555,6 +564,33 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
       incomingRequests: incoming,
       outgoingRequests: outgoing,
     });
+  });
+
+  // A friend may see a friend's active table, or a private table that their
+  // friend owns even after a hand ends and everyone has temporarily left.
+  app.get('/api/friends/tables', requireAuth, (req: AuthedRequest, res) => {
+    const viewerId = req.authUser!.profile.id;
+    const friends = dataStore.getFriendsList(viewerId).map((friend) => {
+      const current = friend.currentRoomId ? gameManager.rooms.get(friend.currentRoomId) : null;
+      const room = current && current.status !== 'closed' ? current
+        : Array.from(gameManager.rooms.values()).find((r) =>
+            r.hostId === friend.userId && r.status !== 'closed' && !r.tournamentId
+          );
+      if (!room) return { ...friend, currentRoomId: null, currentRoomName: null, canJoin: false, canWatch: false };
+      const count = gameManager.summarizeRoom(room).playerCount;
+      return {
+        ...friend,
+        currentRoomId: room.id,
+        currentRoomName: room.name,
+        canJoin: count < room.maxPlayers && !room.tournamentId,
+        canWatch: Boolean(room.pokerEngine?.seats.some((s) => s.userId === friend.userId)
+          || room.blackjackEngine?.seats.some((s) => s.userId === friend.userId)),
+        roomPlayerCount: count,
+        roomMaxPlayers: room.maxPlayers,
+      };
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ friends });
   });
 
   app.get('/api/players/search', requireAuth, (req: AuthedRequest, res) => {
