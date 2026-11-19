@@ -18,6 +18,7 @@ import {
   publicSupabaseConfig,
   supabaseAdmin,
   createSupabaseUserClient,
+  supabaseAuthVerifier,
 } from './server/supabaseAdmin.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -118,6 +119,59 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     }
     return next();
   }
+
+  // Verified Supabase Auth is required for EVERY owner request; a forged
+  // local session or client-controlled profile role never grants ownership.
+  async function isVerifiedOwner(req: AuthedRequest): Promise<boolean> {
+    const ownerId = process.env.MPC_OWNER_UID;
+    if (!ownerId || !supabaseAuthVerifier) return false;
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    if (token.split('.').length !== 3) return false;
+    const { data, error } = await supabaseAuthVerifier.auth.getUser(token);
+    return !error && data.user?.id === ownerId && req.authUser?.profile.id === ownerId;
+  }
+
+  async function requireOwner(req: AuthedRequest, res: Response, next: NextFunction) {
+    try {
+      if (!(await isVerifiedOwner(req))) return res.status(403).json({ error: 'Owner permission required' });
+      return next();
+    } catch {
+      return res.status(503).json({ error: 'Owner verification temporarily unavailable' });
+    }
+  }
+
+  app.get('/api/owner/status', requireAuth, async (req: AuthedRequest, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try { return res.json({ isOwner: await isVerifiedOwner(req) }); }
+    catch { return res.json({ isOwner: false }); }
+  });
+
+  app.get('/api/owner/metrics', requireAuth, requireOwner, async (req: AuthedRequest, res) => {
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    const db = createSupabaseUserClient(token);
+    if (!db) return res.status(503).json({ error: 'Supabase account statistics unavailable' });
+    const [profiles, matches] = await Promise.all([
+      db.from('profiles').select('uid', { count: 'exact', head: true }),
+      db.from('matches').select('id', { count: 'exact', head: true }),
+    ]);
+    if (profiles.error) return res.status(503).json({ error: 'Could not load signup count' });
+    res.setHeader('Cache-Control', 'no-store');
+    const activeRooms = Array.from(gameManager.rooms.values()).filter((r) =>
+      r.status === 'active' && Boolean(
+        r.pokerEngine?.seats.some((s) => !s.isBot) || r.blackjackEngine?.seats.length
+      )).length;
+    const localOnlineUsers = Array.from(dataStore.onlineUsers.values()).filter((p) =>
+      Date.now() - p.lastPing < 60_000
+    ).length;
+    res.json({
+      registeredPlayers: profiles.count ?? 0,
+      gamesRecorded: matches.error ? null : matches.count ?? 0,
+      localOnlineUsers,
+      localActiveTables: activeRooms,
+      scope: 'Registration totals are database-wide. Online players and active tables are only this server instance.',
+      checkedAt: new Date().toISOString(),
+    });
+  });
 
   // HEALTH & PUBLIC CONFIG
   app.get('/api/health', (_req, res) => {
