@@ -507,7 +507,7 @@ export const PokerTableView: React.FC<{
   return (
     <div
       onClick={() => soundEngine.unlock()}
-      className="relative flex flex-col h-[100dvh] w-full overflow-hidden bg-[#05060d] text-slate-100"
+      className="casino-screen relative flex flex-col h-[100dvh] w-full overflow-hidden bg-[#05060d] text-slate-100"
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-20 bg-cover bg-center"
@@ -519,7 +519,7 @@ export const PokerTableView: React.FC<{
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#05060d]/85 via-[#070914]/68 to-[#05060d]" />
 
       {/* Top Table HUD */}
-      <header className="relative z-20 flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 border-b border-sky-400/20 bg-[#080d1e]/90 backdrop-blur-xl shadow-[0_6px_28px_rgba(0,0,0,0.55)]">
+      <header className="neon-casino-panel relative z-20 flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 border-b border-sky-400/20 bg-[#080d1e]/90 backdrop-blur-xl shadow-[0_6px_28px_rgba(0,0,0,0.55)]">
         <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"

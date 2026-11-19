@@ -60,7 +60,7 @@ export const MainLobbyView: React.FC<{
   const tournCount = lobbyTournaments.filter((t) => t.status !== 'completed').length;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="casino-screen max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
       {/* Resume Active Table Banner */}
       {activeRoom && (
         <div className="rounded-[26px] border-2 border-emerald-400/55 bg-gradient-to-r from-emerald-950/60 via-[#0d1d33]/90 to-cyan-950/50 backdrop-blur-md px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_28px_rgba(16,185,129,0.2)]">
@@ -81,7 +81,7 @@ export const MainLobbyView: React.FC<{
       )}
 
       {/* Midnight Skyline Hero Banner */}
-      <div className="relative rounded-[34px] overflow-hidden border-2 border-cyan-400/45 shadow-[0_0_55px_rgba(34,211,238,0.2),0_0_80px_rgba(168,85,247,0.16)] min-h-[210px] sm:min-h-[245px] flex flex-col items-center justify-center text-center p-6">
+      <div className="neon-casino-panel relative rounded-[34px] overflow-hidden border-2 border-cyan-400/45 shadow-[0_0_55px_rgba(34,211,238,0.2),0_0_80px_rgba(168,85,247,0.16)] min-h-[210px] sm:min-h-[245px] flex flex-col items-center justify-center text-center p-6">
         <img
           src="/src/assets/images/neon_hero_skyline_1795020140555.jpg"
           alt="Midnight Poker Club Skyline"
@@ -115,7 +115,7 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('holdem_browser')}
-          className="group relative rounded-[28px] border-2 border-purple-400/75 bg-gradient-to-b from-purple-900/65 via-[#140e31]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(168,85,247,0.28)] hover:border-purple-300 hover:scale-[1.02] transition"
+          className="neon-lobby-tile group relative rounded-[28px] border-2 border-purple-400/75 bg-gradient-to-b from-purple-900/65 via-[#140e31]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(168,85,247,0.28)] hover:border-purple-300 hover:scale-[1.02] transition"
         >
           <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-purple-500/20 border border-purple-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(168,85,247,0.4)]">
             <Spade className="w-8 h-8 text-purple-200" />
@@ -127,7 +127,7 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('blackjack_browser')}
-          className="group relative rounded-[28px] border-2 border-rose-400/75 bg-gradient-to-b from-rose-900/65 via-[#2a0f20]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(244,63,94,0.28)] hover:border-rose-300 hover:scale-[1.02] transition"
+          className="neon-lobby-tile group relative rounded-[28px] border-2 border-rose-400/75 bg-gradient-to-b from-rose-900/65 via-[#2a0f20]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(244,63,94,0.28)] hover:border-rose-300 hover:scale-[1.02] transition"
         >
           <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-rose-500/20 border border-rose-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(244,63,94,0.4)]">
             <Heart className="w-8 h-8 text-rose-200" />
@@ -139,7 +139,7 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('create_private')}
-          className="group relative rounded-[28px] border-2 border-sky-400/75 bg-gradient-to-b from-sky-900/65 via-[#0d1f3a]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(56,189,248,0.28)] hover:border-sky-300 hover:scale-[1.02] transition"
+          className="neon-lobby-tile group relative rounded-[28px] border-2 border-sky-400/75 bg-gradient-to-b from-sky-900/65 via-[#0d1f3a]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(56,189,248,0.28)] hover:border-sky-300 hover:scale-[1.02] transition"
         >
           <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-sky-500/20 border border-sky-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(56,189,248,0.4)]">
             <Users className="w-8 h-8 text-sky-200" />
@@ -151,7 +151,7 @@ export const MainLobbyView: React.FC<{
         <button
           type="button"
           onClick={() => onNavigate('tournament_browser')}
-          className="group relative rounded-[28px] border-2 border-amber-400/75 bg-gradient-to-b from-amber-900/60 via-[#291b0c]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(245,158,11,0.28)] hover:border-amber-300 hover:scale-[1.02] transition"
+          className="neon-lobby-tile group relative rounded-[28px] border-2 border-amber-400/75 bg-gradient-to-b from-amber-900/60 via-[#291b0c]/90 to-[#0a0f22] p-5 text-center shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_0_28px_rgba(245,158,11,0.28)] hover:border-amber-300 hover:scale-[1.02] transition"
         >
           <div className="w-14 h-14 mx-auto mb-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(245,158,11,0.4)]">
             <Trophy className="w-8 h-8 text-amber-200" />
@@ -163,7 +163,7 @@ export const MainLobbyView: React.FC<{
 
       {/* Quick Action Strip & Club Hub */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
+        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-[0_0_14px_rgba(250,204,21,0.25)]">
               <Gift className="w-5 h-5" />
@@ -182,7 +182,7 @@ export const MainLobbyView: React.FC<{
           </button>
         </div>
 
-        <div className="rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
+        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.25)]">
               <Coins className="w-5 h-5" />
@@ -203,7 +203,7 @@ export const MainLobbyView: React.FC<{
           </button>
         </div>
 
-        <div className="rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
+        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-display font-bold text-white">Your Club Record</h3>
             <p className="text-xs text-slate-400 mt-0.5 font-mono tabular-nums">
@@ -251,7 +251,7 @@ export const MainLobbyView: React.FC<{
       </button>
 
       {/* Live Public Tables Preview */}
-      <div className="rounded-[28px] glass-bubbly p-5 space-y-3.5">
+      <div className="neon-casino-panel rounded-[28px] glass-bubbly p-5 space-y-3.5">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-display font-bold text-white">Public Tables</h2>
           <div className="flex gap-3">
@@ -365,7 +365,7 @@ export const RoomBrowserView: React.FC<{
           const buyinVal = selectedBuyin[room.id] ?? Math.min(room.maxBuyin, Math.max(room.minBuyin, 1000));
           const botCount = room.players.filter((p) => p.isBot).length;
           return (
-            <div key={room.id} className="rounded-[26px] glass-bubbly p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div key={room.id} className="neon-casino-panel rounded-[26px] glass-bubbly p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-base font-display font-bold text-white">{room.name}</h2>
@@ -800,7 +800,7 @@ export const JoinPrivateRoomView: React.FC<{
       </form>
 
       {lobbyRooms.length > 0 && (
-        <div className="rounded-[26px] glass-bubbly p-4 space-y-2.5">
+        <div className="neon-casino-panel rounded-[26px] glass-bubbly p-4 space-y-2.5">
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Open Public Tables</h2>
           {lobbyRooms.map((r) => (
             <button
