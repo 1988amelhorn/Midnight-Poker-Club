@@ -33,7 +33,7 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     [process.env.FRONTEND_ORIGIN, process.env.APP_URL]
       .filter(Boolean)
       .flatMap((value) => value!.split(','))
-      .map((value) => value.trim().replace(/\\/+$/, ''))
+      .map((value) => value.trim().replace(/\/+$/, ''))
       .filter(Boolean)
   );
   app.use('/api', (req, res, next) => {
@@ -734,12 +734,13 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
   const wss = new WebSocketServer({
     server: httpServer,
     path: '/ws',
-    verifyClient: ({ origin }, callback) => {
+    verifyClient: ({ origin, req }, callback) => {
       // No Origin header: non-browser clients, validated separately by token.
       // Browser origins must be same-origin or explicitly allowlisted.
       if (!origin || allowedOrigins.has(origin)) return callback(true);
       try {
         const parsed = new URL(origin);
+        if (parsed.host === req.headers.host) return callback(true);
         const hostname = parsed.hostname.toLowerCase();
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
           return callback(true);
