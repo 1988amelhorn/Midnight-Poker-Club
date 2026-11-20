@@ -699,18 +699,18 @@ export const LeaderboardsView: React.FC<{ onBack: () => void }> = ({ onBack }) =
   const rows = board[tab] || [];
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-5">
-      <div className="flex items-center gap-3">
+    <div className="max-w-4xl min-w-0 mx-auto p-4 sm:p-6 space-y-5">
+      <div className="flex items-start gap-3 min-w-0">
         <button type="button" onClick={onBack} className="btn-glossy btn-glossy-dark w-10 h-10 rounded-full flex items-center justify-center text-slate-200">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div>
-          <h1 className="text-xl font-display font-bold text-white">Club Leaderboards</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-display font-bold text-white break-words">Club Leaderboards</h1>
           <p className="text-xs text-slate-400">Live rankings computed from verified player records (Win % requires 5+ hands)</p>
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div role="group" aria-label="Leaderboard categories, scroll for more" className="flex w-full max-w-full min-w-0 gap-3 overflow-x-auto overscroll-x-contain pb-3 pt-1 [scrollbar-width:thin] [scrollbar-color:#a78bfa_transparent]">
         {[
           { id: 'chipBalances', label: 'Top Chips' },
           { id: 'handsWon', label: 'Hold\'em Wins' },
@@ -723,7 +723,8 @@ export const LeaderboardsView: React.FC<{ onBack: () => void }> = ({ onBack }) =
             key={t.id}
             type="button"
             onClick={() => setTab(t.id as typeof tab)}
-            className={`btn-glossy px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ${
+            aria-pressed={tab === t.id}
+            className={`btn-glossy flex-none shrink-0 min-w-max px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap ${
               tab === t.id ? 'btn-glossy-gold text-slate-950' : 'btn-glossy-dark text-slate-300'
             }`}
           >
@@ -738,18 +739,18 @@ export const LeaderboardsView: React.FC<{ onBack: () => void }> = ({ onBack }) =
         ) : (
           <div className="divide-y divide-slate-800/70">
             {rows.map((r) => (
-              <div key={r.userId} className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-3">
+              <div key={r.userId} className="flex items-center justify-between gap-3 px-4 py-3 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <span className={`w-7 text-center font-mono text-sm font-bold ${r.rank <= 3 ? 'text-amber-300' : 'text-slate-500'}`}>
                     #{r.rank}
                   </span>
                   <PlayerAvatar avatarId={r.avatarId} username={r.username} size="sm" />
-                  <div>
-                    <p className="text-sm font-semibold text-white">{r.username}</p>
-                    <p className="text-[11px] text-slate-400">Level {r.level} · {r.secondaryLabel}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white break-words">{r.username}</p>
+                    <p className="text-[11px] text-slate-400 break-words">Level {r.level} · {r.secondaryLabel}</p>
                   </div>
                 </div>
-                <span className="font-mono text-sm font-bold text-amber-300 tabular-nums">
+                <span className="shrink-0 text-right font-mono text-xs sm:text-sm font-bold text-amber-300 tabular-nums">
                   {tab === 'winPercentage' ? `${r.value}%` : r.value.toLocaleString()}
                 </span>
               </div>
