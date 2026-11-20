@@ -159,7 +159,7 @@ export const AuthViews: React.FC<{
   };
 
   return (
-    <div className="min-h-[100dvh] w-full flex items-center justify-center bg-[#050814] p-4 relative overflow-hidden">
+    <div className="royal-auth min-h-[100dvh] w-full flex items-center justify-center p-4 relative overflow-hidden">
       {/* Midnight Skyline & Ambient Neon Radial Glow */}
       <div
         className="pointer-events-none absolute inset-0 opacity-30 bg-cover bg-center"
@@ -169,7 +169,11 @@ export const AuthViews: React.FC<{
       <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[540px] h-[540px] rounded-full bg-cyan-500/18 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-24 right-1/4 w-[440px] h-[440px] rounded-full bg-purple-600/22 blur-[120px]" />
 
-      <div className="neon-casino-panel relative z-10 w-full max-w-md rounded-[32px] glass-bubbly border-2 border-cyan-400/35 p-6 sm:p-8 shadow-[0_0_50px_rgba(56,189,248,0.22),0_20px_50px_rgba(0,0,0,0.8)]">
+      <div className="royal-auth-card relative z-10 w-full max-w-md rounded-[28px] p-5 sm:p-7">
+        <div className="royal-auth-logo-wrap">
+          <img src="/midnight-custom-logo.webp" alt="Midnight Poker Club – red and gold spade emblem" className="royal-auth-logo" />
+        </div>
+
         {mode !== 'welcome' && (
           <div className="flex items-center justify-between gap-2 mb-5">
             <button
@@ -203,24 +207,6 @@ export const AuthViews: React.FC<{
         {/* Welcome Screen */}
         {mode === 'welcome' && (
           <div className="text-center space-y-6">
-            <div className="space-y-1">
-              <h1 className="neon-casino-heading text-4xl font-display font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-sky-400 to-purple-400 bg-clip-text text-transparent drop-shadow-[0_0_22px_rgba(34,211,238,0.6)]">
-                MIDNIGHT
-              </h1>
-              <p className="text-sm font-display font-bold tracking-[0.26em] text-amber-300 uppercase drop-shadow-[0_0_12px_rgba(250,204,21,0.45)]">
-                POKER CLUB
-              </p>
-            </div>
-
-            <div className="relative mx-auto w-56 h-56 rounded-[28px] overflow-hidden border-2 border-cyan-400/50 shadow-[0_0_45px_rgba(34,211,238,0.28)] bg-slate-950">
-              <img
-                src="/midnight-login-logo.webp"
-                alt="Midnight Poker Club moon, crowned poker chip and neon skyline logo"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
-            </div>
-
             <div>
               <p className="text-base font-display font-bold text-amber-200">Where Legends Go All In.</p>
               <p className="text-xs text-slate-300/85 mt-1">
@@ -381,11 +367,6 @@ export const AuthViews: React.FC<{
         {/* Login Screen */}
         {mode === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
-            <img
-              src="/midnight-login-logo.webp"
-              alt="Midnight Poker Club neon logo"
-              className="w-40 h-40 object-contain rounded-2xl mx-auto border border-cyan-400/35 shadow-[0_0_24px_rgba(34,211,238,0.20)]"
-            />
             <div>
               <h2 className="text-2xl font-display font-bold text-white">Welcome Back</h2>
               <p className="text-xs text-slate-400 mt-0.5">Sign in to resume your virtual tables and tournaments</p>
