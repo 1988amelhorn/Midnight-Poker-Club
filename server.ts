@@ -540,6 +540,7 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
   });
 
   app.post('/api/clubs/presets/:id/reopen', requireAuth, rateLimit(12, 60_000), async (req: AuthedRequest, res) => {
+    if (statelessGameRuntime) return res.status(503).json({ error: 'Live tables are temporarily unavailable. Your chips were not charged.', code: 'GAME_SERVER_REQUIRED' });
     const db = friendsDb(req);
     if (!db) return res.status(503).json({ error: 'Sign in through Supabase to reopen a saved table' });
     const { data: preset, error } = await db.from('club_table_presets')
@@ -1360,6 +1361,10 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
   });
 
   wss.on('connection', (ws, req) => {
+    if (statelessGameRuntime) {
+      ws.close(1013, 'Live multiplayer temporarily unavailable');
+      return;
+    }
     const url = new URL(req.url || '/ws', 'http://localhost');
     const token = url.searchParams.get('token') || '';
     const pendingFrames: string[] = [];
