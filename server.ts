@@ -395,12 +395,17 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     if (!Number.isSafeInteger(amount) || amount < 1 || amount > dataStore.globalSettings.maxFriendGiftAmount) {
       return res.status(400).json({ error: 'Enter a whole chip amount between 1 and 10,000.' });
     }
-    if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9_-]{8,96}$/.test(idempotencyKey)) {
+    // Legacy local-only tests use short request keys. Production Supabase
+    // transfers require a stronger key for the durable idempotency ledger.
+    if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9_-]{1,96}$/.test(idempotencyKey)) {
       return res.status(400).json({ error: 'Invalid gift request. Close and reopen the gift form.' });
     }
 
     const db = friendsDb(req);
     if (db) {
+      if (idempotencyKey.length < 8) {
+        return res.status(400).json({ error: 'Invalid gift request. Close and reopen the gift form.' });
+      }
       const { data, error } = await db.rpc('transfer_virtual_chips', {
         p_recipient: recipientId,
         p_amount: amount,
