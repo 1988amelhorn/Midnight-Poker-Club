@@ -25,6 +25,7 @@ import { PlayerAvatar } from '../utils/avatars.tsx';
 export type AppScreen =
   | 'lobby'
   | 'holdem_browser'
+  | 'practice_poker'
   | 'blackjack_browser'
   | 'create_private'
   | 'join_private'
@@ -156,8 +157,9 @@ export const RoomBrowserView: React.FC<{
   gameType: GameType;
   onEnterRoom: (room: GameRoomSummary) => void;
   onCreateRoom: () => void;
+  onPractice: () => void;
   onBack: () => void;
-}> = ({ gameType, onEnterRoom, onCreateRoom, onBack }) => {
+}> = ({ gameType, onEnterRoom, onCreateRoom, onPractice, onBack }) => {
   const { wallet, refreshWallet } = useAuth();
   const { lobbyRooms, refreshLobby, multiplayerAvailable } = useGameSocket();
   const [selectedBuyin, setSelectedBuyin] = useState<Record<string, number>>({});
@@ -223,6 +225,11 @@ export const RoomBrowserView: React.FC<{
         <div role="status" className="rounded-2xl border border-amber-400/40 bg-amber-950/30 px-4 py-4 text-sm text-amber-100">
           <strong className="block mb-1">Live tables temporarily unavailable</strong>
           We’re connecting a reliable game server. No chips will be deducted. Check back when tables are ready.
+          {gameType === 'holdem' && (
+            <button type="button" onClick={onPractice} className="mt-4 block w-full rounded-full btn-glossy btn-glossy-gold px-5 py-3 font-extrabold text-slate-950">
+              ♠ Play Poker Against Bots — Free Practice
+            </button>
+          )}
         </div>
       )}
       {multiplayerAvailable === null && <p role="status" className="text-sm text-slate-300">Checking live tables…</p>}
