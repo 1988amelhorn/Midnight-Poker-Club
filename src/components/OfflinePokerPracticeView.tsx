@@ -47,8 +47,10 @@ export const OfflinePokerPracticeView: React.FC<{ onExit: () => void }> = ({ onE
   useEffect(() => {
     if (state.street === 'showdown' || state.street === 'waiting') {
       const timer = window.setTimeout(() => {
-        if (!engine.seats.find(s => s.userId === PLAYER && s.chips > 0)) {
-          // Reset only the local practice session when the player runs out.
+        // Local practice chips replenish whenever too few players remain.
+        // Account balances are never read or written.
+        const playable = engine.seats.filter(s => s.chips > 0).length;
+        if (playable < 2 || (engine.seats.find(s => s.userId === PLAYER)?.chips ?? 0) <= 0) {
           engine.seats.forEach(s => { s.chips = STARTING_STACK; s.sittingOut = false; });
         }
         engine.startNewHand();
