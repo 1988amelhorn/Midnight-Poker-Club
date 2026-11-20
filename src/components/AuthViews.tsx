@@ -160,15 +160,7 @@ export const AuthViews: React.FC<{
 
   return (
     <div className="royal-auth min-h-[100dvh] w-full flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Midnight Skyline & Ambient Neon Radial Glow */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-30 bg-cover bg-center"
-        style={{ backgroundImage: 'url(/src/assets/images/neon_hero_skyline_1795020140555.jpg)' }}
-      />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#050814]/85 via-[#070b1d]/75 to-[#040610]/95" />
-      <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[540px] h-[540px] rounded-full bg-cyan-500/18 blur-[120px]" />
-      <div className="pointer-events-none absolute -bottom-24 right-1/4 w-[440px] h-[440px] rounded-full bg-purple-600/22 blur-[120px]" />
-
+      {/* Red-and-gold casino backdrop is provided by the scoped royal-auth stylesheet. */}
       <div className="royal-auth-card relative z-10 w-full max-w-md rounded-[28px] p-5 sm:p-7">
         <div className="royal-auth-logo-wrap">
           <img src="/midnight-custom-logo.webp" alt="Midnight Poker Club – red and gold spade emblem" className="royal-auth-logo" />
