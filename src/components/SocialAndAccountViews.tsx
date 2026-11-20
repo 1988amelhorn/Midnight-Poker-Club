@@ -235,7 +235,7 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
   onJoinFriendRoom,
   onWatchFriendRoom,
 }) => {
-  const { refreshWallet } = useAuth();
+  const { refreshWallet, setWalletBalanceLocally } = useAuth();
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [incoming, setIncoming] = useState<FriendRequestItem[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequestItem[]>([]);
@@ -247,6 +247,9 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
   const [requestedIds, setRequestedIds] = useState<string[]>([]);
   const [giftTarget, setGiftTarget] = useState<FriendItem | null>(null);
   const [giftAmount, setGiftAmount] = useState(250);
+  const [giftRequestKey, setGiftRequestKey] = useState<string | null>(null);
+  const [giftSending, setGiftSending] = useState(false);
+  const [giftError, setGiftError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const loadFriends = async () => {
@@ -333,22 +336,46 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
     }
   };
 
+  const openGift = (friend: FriendItem) => {
+    setGiftTarget(friend);
+    setGiftAmount(250);
+    setGiftRequestKey(makeIdempotencyKey('gift'));
+    setGiftError(null);
+    setNotice(null);
+  };
+
   const sendGift = async () => {
-    if (!giftTarget) return;
+    if (!giftTarget || giftSending) return;
+    if (!Number.isSafeInteger(giftAmount) || giftAmount < 1 || giftAmount > 10000) {
+      setGiftError('Enter a whole chip amount between 1 and 10,000.');
+      return;
+    }
+    setGiftSending(true);
+    setGiftError(null);
     try {
-      await apiFetch('/api/wallet/transfer', {
+      // Retain the same request key if the network fails, so retrying cannot
+      // accidentally debit the sender twice after a successful server commit.
+      const response = await apiFetch<{ ok: boolean; message: string; newBalance: number }>('/api/wallet/transfer', {
         method: 'POST',
         body: JSON.stringify({
           recipientId: giftTarget.userId,
           amount: giftAmount,
-          idempotencyKey: makeIdempotencyKey('gift'),
+          idempotencyKey: giftRequestKey,
         }),
       });
-      await refreshWallet();
-      setNotice(`Sent ${giftAmount} virtual chips to ${giftTarget.username}`);
+      if (!response.ok || !Number.isSafeInteger(response.newBalance)) {
+        throw new Error('Gift status not confirmed. Please refresh your wallet.');
+      }
+      setWalletBalanceLocally(response.newBalance);
+      setNotice(`Chips sent! ${giftAmount.toLocaleString()} virtual chips to ${giftTarget.username}.`);
       setGiftTarget(null);
+      setGiftRequestKey(null);
+      // The confirmed transfer must not become an error if refreshing fails.
+      void refreshWallet().catch(() => {});
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : 'Transfer failed');
+      setGiftError(err instanceof Error ? err.message : 'Unable to send chips. Please try again.');
+    } finally {
+      setGiftSending(false);
     }
   };
 
@@ -361,7 +388,7 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
         <h1 className="text-xl font-display font-bold text-white">Friends</h1>
       </div>
 
-      {notice && <div className="rounded-2xl bg-cyan-500/15 border border-cyan-400/40 px-4 py-2 text-xs text-cyan-200">{notice}</div>}
+      {notice && <div role="status" aria-live="polite" className="rounded-2xl bg-emerald-500/15 border border-emerald-400/40 px-4 py-3 text-sm font-semibold text-emerald-200">{notice}</div>}
 
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="relative flex-1">
@@ -488,7 +515,7 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
                 )}
                 <button
                   type="button"
-                  onClick={() => setGiftTarget(f)}
+                  onClick={() => openGift(f)}
                   className="btn-glossy btn-glossy-gold px-3 py-1.5 rounded-full text-xs font-bold text-slate-950"
                 >
                   Gift Chips
@@ -503,20 +530,23 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
           <div className="glass-bubbly w-full max-w-sm rounded-[28px] p-5 space-y-4">
             <h3 className="text-base font-display font-bold text-white">Send Virtual Chips to {giftTarget.username}</h3>
+            <p className="text-xs text-slate-300">Only accepted friends can receive chips. Maximum 10,000 per gift.</p>
+            {giftError && <p role="alert" className="rounded-xl bg-rose-950/60 border border-rose-400/60 p-3 text-sm text-rose-200">{giftError}</p>}
             <input
               type="number"
-              min={10}
+              min={1}
               max={10000}
+              step={1}
               value={giftAmount}
               onChange={(e) => setGiftAmount(Number(e.target.value))}
               className="input-bubbly w-full rounded-2xl px-4 py-2.5 text-sm font-mono text-amber-300"
             />
             <div className="flex gap-2">
-              <button type="button" onClick={() => setGiftTarget(null)} className="btn-glossy btn-glossy-dark flex-1 py-2.5 rounded-full text-xs text-slate-200">
+              <button type="button" disabled={giftSending} onClick={() => { setGiftTarget(null); setGiftRequestKey(null); setGiftError(null); }} className="btn-glossy btn-glossy-dark flex-1 py-2.5 rounded-full text-xs text-slate-200 disabled:opacity-50">
                 Cancel
               </button>
-              <button type="button" onClick={() => void sendGift()} className="btn-glossy btn-glossy-gold flex-1 py-2.5 rounded-full text-slate-950 font-bold text-xs">
-                Send Gift
+              <button type="button" disabled={giftSending || !Number.isSafeInteger(giftAmount) || giftAmount < 1 || giftAmount > 10000} onClick={() => void sendGift()} className="btn-glossy btn-glossy-gold flex-1 py-2.5 rounded-full text-slate-950 font-bold text-xs disabled:opacity-50">
+                {giftSending ? 'Sending...' : 'Send Chips'}
               </button>
             </div>
           </div>
