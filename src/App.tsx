@@ -53,6 +53,8 @@ import { GameSocketProvider, useGameSocket } from './context/GameSocketContext.t
 import { apiFetch } from './lib/api.ts';
 import type { GameRoomSummary } from './shared/types.ts';
 import { PlayerAvatar } from './utils/avatars.tsx';
+import { PlayerCardModal } from './components/PlayerCardModal.tsx';
+import { OpenPlayerProfileContext } from './context/PlayerProfileContext.ts';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; message: string }> {
   constructor(props: { children: ReactNode }) {
@@ -107,6 +109,7 @@ const ClubShell: React.FC = () => {
   const { reconnecting, friendRequestRefreshVersion, currentTournament } = useGameSocket();
 
   const [screen, setScreen] = useState<AppScreen>('lobby');
+  const [profileModalId, setProfileModalId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
   const [friendRequestRefresh, setFriendRequestRefresh] = useState(0);
@@ -327,6 +330,7 @@ const ClubShell: React.FC = () => {
     screen === 'tournament_detail';
 
   return (
+    <OpenPlayerProfileContext.Provider value={setProfileModalId}>
     <div className="royal-app min-h-[100dvh] w-full overflow-x-hidden flex flex-col bg-[#0b0308] text-slate-100">
       {/* Persistent Top Lobby Header (matches Reference Image 1 + Desktop 1440px) */}
       <header className="royal-header sticky top-0 z-30 px-3 sm:px-6 py-2.5">
@@ -609,7 +613,9 @@ const ClubShell: React.FC = () => {
       </nav>
 
       <OfflineIndicator />
+      {profileModalId && <PlayerCardModal playerId={profileModalId} onClose={() => setProfileModalId(null)} />}
     </div>
+    </OpenPlayerProfileContext.Provider>
   );
 };
 

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { ServerDataStore, type StoredUserRecord } from './server/dataStore.ts';
+import { ServerDataStore, sanitizeChatText, type StoredUserRecord } from './server/dataStore.ts';
 import { GameManager, type GameManagerOptions } from './server/gameManager.ts';
 import { listPersistentFriends, sendPersistentFriendRequest, respondPersistentFriendRequest, removePersistentFriend, arePersistentFriends } from './server/friendPersistence.ts';
 import type { BotDifficulty } from './src/shared/types.ts';
@@ -295,8 +295,52 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     });
   });
 
-  app.patch('/api/profile', requireAuth, (req: AuthedRequest, res) => {
-    const resUpdate = dataStore.updateProfile(req.authUser!.profile.id, req.body || {});
+  app.patch('/api/profile', requireAuth, async (req: AuthedRequest, res) => {
+    const uid = req.authUser!.profile.id;
+    const patch = req.body || {};
+    const db = friendsDb(req);
+    if (db) {
+      const updates: {avatar_url?: string; username?: string} = {};
+      if (patch.avatarId !== undefined) {
+        if (typeof patch.avatarId !== 'string') {
+          return res.status(400).json({ error: 'Invalid profile picture.' });
+        }
+        const builtins = ['ace-spade','king-gold','cyber-heart','emerald-club','violet-diamond','obsidian-pro','sunset-high','royal-flush'];
+        if (!builtins.includes(patch.avatarId)) {
+          // Only allow an avatar uploaded to this user's own folder in our bucket.
+          let valid = false;
+          try {
+            const photoUrl = new URL(patch.avatarId);
+            const project = new URL(publicSupabaseConfig.supabaseUrl);
+            const expectedPrefix = '/storage/v1/object/public/player-avatars/' + uid + '/';
+            valid = photoUrl.protocol === 'https:' && photoUrl.origin === project.origin
+              && photoUrl.pathname.startsWith(expectedPrefix)
+              && /^avatar-[0-9a-f-]{36}\.webp$/.test(photoUrl.pathname.slice(expectedPrefix.length))
+              && !photoUrl.search && !photoUrl.hash;
+          } catch { /* Invalid URL */ }
+          if (!valid) return res.status(400).json({ error: 'Select a photo from your own account.' });
+        }
+        updates.avatar_url = patch.avatarId;
+      }
+      if (patch.username !== undefined && patch.username !== req.authUser!.profile.username) {
+        if (typeof patch.username !== 'string' || !/^[a-zA-Z0-9_]{3,20}$/.test(patch.username.trim())) {
+          return res.status(400).json({ error: 'Username must be 3–20 letters, numbers, or underscores.' });
+        }
+        updates.username = patch.username.trim();
+      }
+      if (Object.keys(updates).length) {
+        const { data, error } = await db.from('profiles')
+          .update(updates).eq('uid', uid)
+          .select('uid, username, avatar_url').single();
+        if (error || !data) {
+          console.warn('Failed to save player profile', error?.code);
+          return res.status(400).json({ error: 'Unable to save profile changes. Please try again.' });
+        }
+        patch.username = data.username;
+        patch.avatarId = data.avatar_url;
+      }
+    }
+    const resUpdate = dataStore.updateProfile(uid, patch);
     if (!resUpdate.ok) return res.status(400).json({ error: resUpdate.error });
     return res.json({ user: resUpdate.profile });
   });
@@ -1042,9 +1086,55 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
   });
 
   // CHAT, INBOX & NOTIFICATIONS
-  app.post('/api/chat', requireAuth, rateLimit(30, 30_000), (req: AuthedRequest, res) => {
+  // Direct messages are durable and private in Supabase; room chat stays on the game server.
+  app.post('/api/chat', requireAuth, rateLimit(30, 30_000), async (req: AuthedRequest, res) => {
     const { channelType, channelId, recipientId, message, isEmote } = req.body || {};
     const uid = req.authUser!.profile.id;
+    if (channelType === 'direct') {
+      const recipient = String(recipientId || '');
+      if (!/^[0-9a-f-]{36}$/i.test(recipient) || recipient === uid) {
+        return res.status(400).json({ error: 'Choose a friend to message.' });
+      }
+      const { clean } = sanitizeChatText(String(message || ''));
+      if (!clean) return res.status(400).json({ error: 'Enter a message before sending.' });
+      const db = friendsDb(req);
+      if (db) {
+        let accepted: boolean;
+        try { accepted = await arePersistentFriends(db, uid, recipient); }
+        catch (error) { return friendsError(res, error); }
+        if (!accepted) return res.status(403).json({ error: 'You can only message accepted friends.' });
+
+        const { data, error } = await db.from('direct_messages')
+          .insert({ sender_uid: uid, recipient_uid: recipient, body: clean })
+          .select('id, sender_uid, recipient_uid, body, created_at').single();
+        if (error || !data) {
+          console.warn('Direct message database insert failed', error?.code);
+          return res.status(503).json({ error: 'Message was not saved. Please try again.' });
+        }
+        const item = {
+          id: data.id, channelType: 'direct', channelId: recipient,
+          senderId: uid, senderUsername: req.authUser!.profile.username,
+          senderAvatarId: req.authUser!.profile.avatarId,
+          recipientId: recipient, message: data.body, isEmote: false,
+          createdAt: data.created_at,
+        };
+        gameManager.notifyUser(recipient, { type: 'chat:direct', message: item });
+        return res.status(201).json({ ok: true, item });
+      }
+      if (isSupabaseAuthEnabled) {
+        return res.status(503).json({ error: 'Sign in to send private messages.' });
+      }
+      if (!dataStore.areFriends(uid, recipient)) {
+        return res.status(403).json({ error: 'You can only message accepted friends.' });
+      }
+      const local = dataStore.addChatMessage({
+        channelType: 'direct', channelId: recipient,
+        senderId: uid, recipientId: recipient, message: clean,
+      });
+      if (!local.ok) return res.status(400).json({ error: local.error });
+      gameManager.notifyUser(recipient, { type: 'chat:direct', message: local.item });
+      return res.status(201).json(local);
+    }
 
     if (channelType === 'room') {
       const room = gameManager.rooms.get(String(channelId));
@@ -1056,7 +1146,6 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
         return res.status(403).json({ error: 'Must be seated in room to send table chat' });
       }
     }
-
     const result = dataStore.addChatMessage({
       channelType,
       channelId: String(channelId || 'global'),
@@ -1066,31 +1155,54 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
       isEmote: Boolean(isEmote),
     });
     if (!result.ok) return res.status(400).json({ error: result.error });
-
-    if (channelType === 'room') {
-      gameManager.broadcastRoomChat(String(channelId), result.item);
-    } else if (channelType === 'direct' && recipientId) {
-      gameManager.notifyUser(String(recipientId), { type: 'chat:direct', message: result.item });
-    }
+    if (channelType === 'room') gameManager.broadcastRoomChat(String(channelId), result.item);
     return res.status(201).json(result);
   });
 
-  app.get('/api/inbox', requireAuth, (req: AuthedRequest, res) => {
+  app.get('/api/inbox', requireAuth, async (req: AuthedRequest, res) => {
+    res.setHeader('Cache-Control', 'no-store');
     const uid = req.authUser!.profile.id;
-    const directMessages: unknown[] = [];
+    const db = friendsDb(req);
+    if (db) {
+      const { data: rows, error } = await db.from('direct_messages')
+        .select('id, sender_uid, recipient_uid, body, created_at')
+        .or('sender_uid.eq.' + uid + ',recipient_uid.eq.' + uid)
+        .order('created_at', { ascending: false }).limit(250);
+      if (error) {
+        console.warn('Direct message query failed', error.code);
+        return res.status(503).json({ error: 'Messages temporarily unavailable.' });
+      }
+      const ids = [...new Set((rows || []).flatMap(m => [m.sender_uid, m.recipient_uid]))];
+      const profiles = new Map<string, {username: string; avatar_url: string}>();
+      if (ids.length) {
+        const { data: playerRows, error: profileError } = await db.from('profiles')
+          .select('uid, username, avatar_url').in('uid', ids);
+        if (profileError) return friendsError(res, profileError);
+        for (const p of playerRows || []) profiles.set(p.uid, p);
+      }
+      const directMessages = (rows || []).reverse().map(m => ({
+        id: m.id, channelType: 'direct' as const,
+        channelId: m.sender_uid === uid ? m.recipient_uid : m.sender_uid,
+        senderId: m.sender_uid,
+        senderUsername: profiles.get(m.sender_uid)?.username || 'Player',
+        senderAvatarId: profiles.get(m.sender_uid)?.avatar_url || 'ace-spade',
+        recipientId: m.recipient_uid,
+        recipientUsername: profiles.get(m.recipient_uid)?.username || 'Player',
+        recipientAvatarId: profiles.get(m.recipient_uid)?.avatar_url || 'ace-spade',
+        message: m.body, isEmote: false, createdAt: m.created_at,
+      }));
+      return res.json({ notifications: dataStore.notifications.get(uid) ?? [], directMessages });
+    }
+    if (isSupabaseAuthEnabled) return res.status(503).json({ error: 'Sign in to see your messages.' });
+    const directMessages = [];
     for (const [key, list] of dataStore.chatMessages.entries()) {
       if (key.startsWith('direct:')) {
         for (const msg of list) {
-          if (msg.senderId === uid || msg.recipientId === uid) {
-            directMessages.push(msg);
-          }
+          if (msg.senderId === uid || msg.recipientId === uid) directMessages.push(msg);
         }
       }
     }
-    res.json({
-      notifications: dataStore.notifications.get(uid) ?? [],
-      directMessages,
-    });
+    return res.json({ notifications: dataStore.notifications.get(uid) ?? [], directMessages });
   });
 
   app.post('/api/notifications/read-all', requireAuth, (req: AuthedRequest, res) => {

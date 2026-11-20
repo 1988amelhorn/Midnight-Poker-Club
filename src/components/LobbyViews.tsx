@@ -874,7 +874,7 @@ export const RoomWaitingLobbyView: React.FC<{
           {currentRoom.players.map((p) => (
             <div key={p.userId} className="flex items-center justify-between gap-2 rounded-2xl input-bubbly px-3.5 py-2.5">
               <div className="flex items-center gap-2.5 min-w-0">
-                <PlayerAvatar avatarId={p.avatarId} username={p.username} size="sm" />
+                <PlayerAvatar playerId={p.isBot ? undefined : p.userId} avatarId={p.avatarId} username={p.username} size="sm" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-sm font-semibold text-white truncate">

@@ -711,7 +711,7 @@ export const TournamentDetailView: React.FC<{
             {t.players.map((p) => (
               <div key={p.userId} className="flex items-center justify-between gap-2 rounded-2xl input-bubbly px-4 py-2.5">
                 <div className="flex items-center gap-3 min-w-0">
-                  <PlayerAvatar avatarId={p.avatarId} username={p.username} size="sm" />
+                  <PlayerAvatar playerId={p.isBot ? undefined : p.userId} avatarId={p.avatarId} username={p.username} size="sm" />
                   <span className="text-sm font-semibold text-white truncate">
                     {p.username} {p.userId === t.creatorId && '👑'} {p.userId === user?.id && '(You)'}
                   </span>
@@ -861,7 +861,7 @@ export const TournamentDetailView: React.FC<{
                     <td className="px-4 py-3 font-mono text-slate-400">{p.placement ?? idx + 1}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <PlayerAvatar avatarId={p.avatarId} username={p.username} size="xs" />
+                        <PlayerAvatar playerId={p.isBot ? undefined : p.userId} avatarId={p.avatarId} username={p.username} size="xs" />
                         <span className="font-semibold text-white">
                           {p.username} {p.userId === user?.id && '(You)'}
                         </span>
@@ -917,7 +917,7 @@ export const TournamentDetailView: React.FC<{
           </div>
 
           <div className="flex flex-col items-center gap-2">
-            <PlayerAvatar avatarId={winnerPlayer.avatarId} username={winnerPlayer.username} size="xl" className="ring-4 ring-amber-400" />
+            <PlayerAvatar playerId={winnerPlayer.isBot ? undefined : winnerPlayer.userId} avatarId={winnerPlayer.avatarId} username={winnerPlayer.username} size="xl" className="ring-4 ring-amber-400" />
             <span className="px-4 py-1 rounded-full btn-glossy btn-glossy-gold text-slate-950 font-display font-extrabold text-xs">
               1st Place Champion
             </span>
