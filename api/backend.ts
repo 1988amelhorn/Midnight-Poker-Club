@@ -1,10 +1,10 @@
-// Vercel Function entrypoint: the existing Express API and WebSocket server
-// are exported together so requests can be handled on the Hobby plan.
-// Vercel cannot be authoritative for process-local table state; this function
-// serves account endpoints but refuses misleading multiplayer room actions.
-// A dedicated Node server handles real poker and blackjack play.
+// Temporary legacy compatibility entrypoint: restores the original Vercel
+// game routes while dedicated multiplayer hosting is being provisioned.
+// IMPORTANT: Vercel's serverless instances do not share process-local tables;
+// rooms can vanish between requests, and WebSockets may not connect.
+// Revert to statelessRuntime:true if multi-client tests fail.
 import { createNeonPokerServer } from '../server.ts';
 
-const { httpServer } = createNeonPokerServer({ statelessRuntime: true });
+const { httpServer } = createNeonPokerServer();
 
 export default httpServer;
