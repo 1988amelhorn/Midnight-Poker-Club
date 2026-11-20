@@ -379,17 +379,78 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     });
   });
 
-  app.post('/api/wallet/transfer', requireAuth, rateLimit(20, 60_000), (req: AuthedRequest, res) => {
-    const { recipientId, amount, idempotencyKey } = req.body || {};
-    const result = dataStore.transferChipsBetweenFriends(
-      req.authUser!.profile.id,
-      String(recipientId || ''),
-      Number(amount || 0),
-      typeof idempotencyKey === 'string' ? idempotencyKey : undefined
-    );
+  // Supabase's profiles.chips and friends tables are the source of truth.
+  // An in-memory transfer can lose chips across serverless instances, so use
+  // one Postgres transaction for both balances and the gift audit trail.
+  app.post('/api/wallet/transfer', requireAuth, rateLimit(20, 60_000), async (req: AuthedRequest, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const senderId = req.authUser!.profile.id;
+    const recipientId = String(req.body?.recipientId || '');
+    const amount = Number(req.body?.amount);
+    const idempotencyKey = req.body?.idempotencyKey;
+
+    if (!/^[0-9a-f-]{36}$/i.test(recipientId) || recipientId === senderId) {
+      return res.status(400).json({ error: 'Choose a valid friend to send chips to.' });
+    }
+    if (!Number.isSafeInteger(amount) || amount < 1 || amount > dataStore.globalSettings.maxFriendGiftAmount) {
+      return res.status(400).json({ error: 'Enter a whole chip amount between 1 and 10,000.' });
+    }
+    // Legacy local-only tests use short request keys. Production Supabase
+    // transfers require a stronger key for the durable idempotency ledger.
+    if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9_-]{1,96}$/.test(idempotencyKey)) {
+      return res.status(400).json({ error: 'Invalid gift request. Close and reopen the gift form.' });
+    }
+
+    const db = friendsDb(req);
+    if (db) {
+      if (idempotencyKey.length < 8) {
+        return res.status(400).json({ error: 'Invalid gift request. Close and reopen the gift form.' });
+      }
+      const { data, error } = await db.rpc('transfer_virtual_chips', {
+        p_recipient: recipientId,
+        p_amount: amount,
+        p_key: idempotencyKey,
+      });
+      if (error) {
+        const message = error.message || '';
+        if (/only send chips to accepted friends/i.test(message)) {
+          return res.status(403).json({ error: 'You can only send chips to accepted friends.' });
+        }
+        if (/insufficient chips/i.test(message)) {
+          return res.status(400).json({ error: 'Not enough chips for this gift.' });
+        }
+        if (/request key has already been used/i.test(message)) {
+          return res.status(409).json({ error: 'This gift request was already used for a different transfer.' });
+        }
+        if (/could not find|function.*does not exist|PGRST202/i.test(message)) {
+          return res.status(503).json({ error: 'Chip gifting is being updated. Please try again shortly.' });
+        }
+        console.warn('Atomic chip gift failed', { code: error.code });
+        return res.status(503).json({ error: 'Could not send chips. No transfer was confirmed; please retry.' });
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+      const senderBalance = Number(result?.sender_balance);
+      const recipientBalance = Number(result?.recipient_balance);
+      if (!Number.isSafeInteger(senderBalance) || !Number.isSafeInteger(recipientBalance)) {
+        return res.status(503).json({ error: 'Gift status could not be verified. Refresh your wallet before retrying.' });
+      }
+      req.authUser!.wallet.chipBalance = senderBalance;
+      const cachedRecipient = dataStore.users.get(recipientId);
+      if (cachedRecipient) cachedRecipient.wallet.chipBalance = recipientBalance;
+      gameManager.notifyUser(recipientId, { type: 'wallet:refresh' });
+      return res.json({ ok: true, message: 'Chips sent', newBalance: senderBalance, duplicate: Boolean(result?.duplicate) });
+    }
+
+    // Local-only development accounts have no persistent Supabase identity.
+    // Never report a successful ephemeral gift on the production Supabase setup.
+    if (isSupabaseAuthEnabled) {
+      return res.status(403).json({ error: 'Sign in with your Supabase account to send chips.' });
+    }
+    const result = dataStore.transferChipsBetweenFriends(senderId, recipientId, amount, idempotencyKey);
     if (!result.ok) return res.status(400).json({ error: result.error });
-    gameManager.notifyUser(String(recipientId), { type: 'wallet:refresh' });
-    return res.json({ ok: true, newBalance: result.senderBalance });
+    gameManager.notifyUser(recipientId, { type: 'wallet:refresh' });
+    return res.json({ ok: true, message: 'Chips sent', newBalance: result.senderBalance });
   });
 
   // Private club presets are durable, unlike a running hand. Friends
