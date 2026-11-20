@@ -64,12 +64,7 @@ export const MainLobbyView: React.FC<{
 
   return (
     <div className="royal-home casino-screen mx-auto w-full max-w-5xl px-3 pb-6 pt-3 sm:px-6 sm:pt-5">
-      {multiplayerAvailable === false && (
-        <div role="status" className="mb-4 rounded-2xl border border-amber-400/50 bg-amber-950/40 p-3 text-sm text-amber-100">
-          <strong className="block">Live game tables temporarily offline</strong>
-          We're connecting a reliable multiplayer server. Your account, friends and virtual chips are still available.
-        </div>
-      )}
+      
       {activeRoom && (
         <div className="royal-resume">
           <div className="min-w-0">
@@ -169,10 +164,10 @@ export const RoomBrowserView: React.FC<{
   }, [refreshLobby]);
 
   // Show only human-created tables with at least one seated player.
-  const rooms = multiplayerAvailable === true ? lobbyRooms.filter((r) => r.gameType === gameType && r.playerCount > 0) : [];
+  const rooms = lobbyRooms.filter((r) => r.gameType === gameType && r.playerCount > 0);
 
   const handleJoin = async (room: GameRoomSummary) => {
-    if (multiplayerAvailable !== true) return;
+    
     setError(null);
     setJoiningId(room.id);
     try {
@@ -211,7 +206,7 @@ export const RoomBrowserView: React.FC<{
         </div>
         <button
           type="button"
-          disabled={multiplayerAvailable !== true}
+          
           onClick={onCreateRoom}
           className="inline-flex items-center gap-1.5 rounded-full btn-glossy btn-glossy-purple px-3.5 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-display font-bold text-white whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
@@ -219,14 +214,9 @@ export const RoomBrowserView: React.FC<{
         </button>
       </div>
 
-      {multiplayerAvailable === false && (
-        <div role="status" className="rounded-2xl border border-amber-400/40 bg-amber-950/30 px-4 py-4 text-sm text-amber-100">
-          <strong className="block mb-1">Live tables temporarily unavailable</strong>
-          We’re connecting a reliable game server. No chips will be deducted. Check back when tables are ready.
-        </div>
-      )}
-      {multiplayerAvailable === null && <p role="status" className="text-sm text-slate-300">Checking live tables…</p>}
-      {multiplayerAvailable === true && rooms.length === 0 && (
+      
+      
+      {rooms.length === 0 && (
         <section className="rounded-[24px] border border-amber-400/45 bg-slate-950/70 p-6 text-center space-y-3" aria-label="No active tables">
           <h2 className="text-lg font-display font-bold text-white">No active {gameType === 'holdem' ? "Hold'em" : 'Blackjack'} tables yet</h2>
           <p className="text-sm text-slate-300">Tables appear here when someone creates one. Be the first to host a game!</p>
@@ -340,10 +330,7 @@ export const CreatePrivateRoomView: React.FC<{
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (multiplayerAvailable !== true) {
-      setError('Live tables are temporarily offline. No virtual chips were charged.');
-      return;
-    }
+
     setError(null);
     setSubmitting(true);
     try {
@@ -377,11 +364,7 @@ export const CreatePrivateRoomView: React.FC<{
 
   return (
     <div className="max-w-xl mx-auto p-4 sm:p-6 space-y-5">
-      {multiplayerAvailable === false && (
-        <p role="status" className="rounded-2xl border border-amber-400/45 bg-amber-950/35 p-4 text-sm text-amber-100">
-          Creating tables is paused until the multiplayer server is connected. No chips will be deducted.
-        </p>
-      )}
+      
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <button type="button" onClick={onBack} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full btn-glossy btn-glossy-dark flex items-center justify-center text-slate-200 shrink-0">
@@ -394,7 +377,7 @@ export const CreatePrivateRoomView: React.FC<{
         </button>
       </div>
 
-      {multiplayerAvailable === true && savedTables.length > 0 && (
+      {savedTables.length > 0 && (
         <section className="neon-casino-panel glass-bubbly rounded-[26px] p-4 space-y-3">
           <h2 className="font-display font-bold text-sm text-amber-300">Saved Table Setups</h2>
           <p className="text-xs text-slate-400">These aren't live tables. Reopening one creates a new game with the same settings.</p>
@@ -404,7 +387,7 @@ export const CreatePrivateRoomView: React.FC<{
                 <p className="text-white font-bold text-sm truncate">{item.name}</p>
                 <p className="text-xs text-slate-400">{item.game_type === 'holdem' ? 'Poker' : 'Blackjack'} · {item.max_players} seats</p>
               </div>
-              <button type="button" disabled={reopening !== null || multiplayerAvailable !== true}
+              <button type="button" disabled={reopening !== null}
                 onClick={() => void reopenSavedTable(item.id)}
                 className="btn-glossy btn-glossy-blue text-white font-bold text-xs rounded-full px-4 py-2 shrink-0 disabled:opacity-60">
                 {reopening === item.id ? 'Opening…' : 'Reopen'}
@@ -630,7 +613,7 @@ export const CreatePrivateRoomView: React.FC<{
 
         <button
           type="submit"
-          disabled={submitting || multiplayerAvailable !== true}
+          disabled={submitting}
           className="w-full py-3.5 rounded-full btn-glossy btn-glossy-purple text-white font-display font-extrabold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {submitting ? 'Creating Table...' : 'Create Table'}
@@ -655,10 +638,7 @@ export const JoinPrivateRoomView: React.FC<{
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (multiplayerAvailable !== true) {
-      setError('Live tables are temporarily offline. No virtual chips were charged.');
-      return;
-    }
+
     setError(null);
     setSubmitting(true);
     try {
@@ -681,11 +661,7 @@ export const JoinPrivateRoomView: React.FC<{
 
   return (
     <div className="max-w-lg mx-auto p-4 sm:p-6 space-y-5">
-      {multiplayerAvailable === false && (
-        <p role="status" className="rounded-2xl border border-amber-400/45 bg-amber-950/35 p-4 text-sm text-amber-100">
-          Joining private tables is paused while the live game server is being connected. No chips will be deducted.
-        </p>
-      )}
+      
       <div className="flex items-center gap-3">
         <button type="button" onClick={onBack} className="w-10 h-10 rounded-full btn-glossy btn-glossy-dark flex items-center justify-center text-slate-200">
           <ChevronLeft className="w-5 h-5" />
@@ -734,7 +710,7 @@ export const JoinPrivateRoomView: React.FC<{
 
         <button
           type="submit"
-          disabled={submitting || multiplayerAvailable !== true}
+          disabled={submitting}
           className="w-full py-3.5 rounded-full btn-glossy btn-glossy-blue text-white font-display font-extrabold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {submitting ? 'Joining...' : 'Join Table'}
