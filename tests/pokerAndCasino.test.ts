@@ -515,6 +515,15 @@ describe('Auth, Wallet Integrity, Private Rooms & Tournaments', () => {
       const giftOkJson = (await giftOk.json()) as { newBalance: number };
       expect(giftOkJson.newBalance).toBe(4800);
 
+      // Retrying a confirmed gift with the same key must not send chips twice.
+      const retryGift = await fetch(`${base}/api/wallet/transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminData.token}` },
+        body: JSON.stringify({ recipientId: playerData.user.id, amount: 200, idempotencyKey: 'g2' }),
+      });
+      expect(retryGift.status).toBe(200);
+      expect(((await retryGift.json()) as { newBalance: number }).newBalance).toBe(4800);
+
       // Verify /api/public-config exposes non-secret diagnostics without leaking any private keys
       const pubRes = await fetch(`${base}/api/public-config`);
       expect(pubRes.status).toBe(200);
