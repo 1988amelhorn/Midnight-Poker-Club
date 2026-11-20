@@ -295,8 +295,52 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     });
   });
 
-  app.patch('/api/profile', requireAuth, (req: AuthedRequest, res) => {
-    const resUpdate = dataStore.updateProfile(req.authUser!.profile.id, req.body || {});
+  app.patch('/api/profile', requireAuth, async (req: AuthedRequest, res) => {
+    const uid = req.authUser!.profile.id;
+    const patch = req.body || {};
+    const db = friendsDb(req);
+    if (db) {
+      const updates: {avatar_url?: string; username?: string} = {};
+      if (patch.avatarId !== undefined) {
+        if (typeof patch.avatarId !== 'string') {
+          return res.status(400).json({ error: 'Invalid profile picture.' });
+        }
+        const builtins = ['ace-spade','king-gold','cyber-heart','emerald-club','violet-diamond','obsidian-pro','sunset-high','royal-flush'];
+        if (!builtins.includes(patch.avatarId)) {
+          // Only allow an avatar uploaded to this user's own folder in our bucket.
+          let valid = false;
+          try {
+            const photoUrl = new URL(patch.avatarId);
+            const project = new URL(db.supabaseUrl);
+            const expectedPrefix = '/storage/v1/object/public/player-avatars/' + uid + '/';
+            valid = photoUrl.protocol === 'https:' && photoUrl.origin === project.origin
+              && photoUrl.pathname.startsWith(expectedPrefix)
+              && /^avatar-[0-9a-f-]{36}\.webp$/.test(photoUrl.pathname.slice(expectedPrefix.length))
+              && !photoUrl.search && !photoUrl.hash;
+          } catch { /* Invalid URL */ }
+          if (!valid) return res.status(400).json({ error: 'Select a photo from your own account.' });
+        }
+        updates.avatar_url = patch.avatarId;
+      }
+      if (patch.username !== undefined && patch.username !== req.authUser!.profile.username) {
+        if (typeof patch.username !== 'string' || !/^[a-zA-Z0-9_]{3,20}$/.test(patch.username.trim())) {
+          return res.status(400).json({ error: 'Username must be 3–20 letters, numbers, or underscores.' });
+        }
+        updates.username = patch.username.trim();
+      }
+      if (Object.keys(updates).length) {
+        const { data, error } = await db.from('profiles')
+          .update(updates).eq('uid', uid)
+          .select('uid, username, avatar_url').single();
+        if (error || !data) {
+          console.warn('Failed to save player profile', error?.code);
+          return res.status(400).json({ error: 'Unable to save profile changes. Please try again.' });
+        }
+        patch.username = data.username;
+        patch.avatarId = data.avatar_url;
+      }
+    }
+    const resUpdate = dataStore.updateProfile(uid, patch);
     if (!resUpdate.ok) return res.status(400).json({ error: resUpdate.error });
     return res.json({ user: resUpdate.profile });
   });
