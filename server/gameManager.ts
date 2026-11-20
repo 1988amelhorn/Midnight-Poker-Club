@@ -148,7 +148,7 @@ export class GameManager {
   constructor(private dataStore: ServerDataStore, options?: GameManagerOptions) {
     const [minMs, maxMs] = options?.botThinkDelayRangeMs ?? [2000, 5000];
     this.botThinkDelayRangeMs = [Math.max(10, minMs), Math.max(Math.max(10, minMs), maxMs)];
-    this.seedPublicEmptyTables();
+    // No pre-created rooms. Players create public or private tables on demand.
   }
 
   public cleanup(): void {
@@ -159,85 +159,6 @@ export class GameManager {
     }
     for (const tourn of this.tournaments.values()) {
       if (tourn.blindTimer) clearInterval(tourn.blindTimer);
-    }
-  }
-
-  private seedPublicEmptyTables(): void {
-    const publicTemplates: Array<{
-      code: string;
-      name: string;
-      gameType: GameType;
-      maxPlayers: number;
-      smallBlind: number;
-      bigBlind: number;
-      minBuyin: number;
-      maxBuyin: number;
-    }> = [
-      {
-        code: 'MIDN50',
-        name: 'Midnight Skyline Hold\'em (25/50)',
-        gameType: 'holdem',
-        maxPlayers: 9,
-        smallBlind: 25,
-        bigBlind: 50,
-        minBuyin: 500,
-        maxBuyin: 5000,
-      },
-      {
-        code: 'CYBR20',
-        name: 'Midnight Micro Hold\'em (10/20)',
-        gameType: 'holdem',
-        maxPlayers: 6,
-        smallBlind: 10,
-        bigBlind: 20,
-        minBuyin: 200,
-        maxBuyin: 2000,
-      },
-      {
-        code: 'VIP21X',
-        name: 'Emerald VIP Blackjack',
-        gameType: 'blackjack',
-        maxPlayers: 7,
-        smallBlind: 25,
-        bigBlind: 1000,
-        minBuyin: 250,
-        maxBuyin: 10000,
-      },
-    ];
-
-    // House tables have stable IDs across a single-server restart. Only
-    // these official templates are fixed: player-created private tables are
-    // still transient until persistent multiplayer state is implemented.
-    const houseIds: Record<string, string> = {
-      MIDN50: 'c4a4e50a-5c0d-4f8e-b4b2-264d6db7a501',
-      CYBR20: 'c4a4e50a-5c0d-4f8e-b4b2-264d6db7a502',
-      VIP21X: 'c4a4e50a-5c0d-4f8e-b4b2-264d6db7a503',
-    };
-    for (const tpl of publicTemplates) {
-      const id = houseIds[tpl.code];
-      const room: ManagedRoom = {
-        id,
-        code: tpl.code,
-        name: tpl.name,
-        gameType: tpl.gameType,
-        visibility: 'public',
-        passwordHash: null,
-        hostId: 'system',
-        hostUsername: 'Midnight House',
-        maxPlayers: tpl.maxPlayers,
-        smallBlind: tpl.smallBlind,
-        bigBlind: tpl.bigBlind,
-        minBuyin: tpl.minBuyin,
-        maxBuyin: tpl.maxBuyin,
-        gameSpeed: 'normal',
-        allowProbabilityAssist: true,
-        status: 'waiting',
-        tournamentId: null,
-        createdAt: new Date().toISOString(),
-      };
-      this.attachEngine(room);
-      this.rooms.set(id, room);
-      this.roomCodeToId.set(tpl.code, id);
     }
   }
 
@@ -389,12 +310,6 @@ export class GameManager {
       return { ok: false, error: 'Room is full' };
     }
 
-    // First human joining a system-hosted room becomes temporary room host for controls
-    if (room.hostId === 'system') {
-      room.hostId = params.userId;
-      room.hostUsername = user.profile.username;
-    }
-
     let tableStack = 0;
     if (!isTournamentRoom) {
       const requested = Math.floor(params.buyinAmount ?? Math.min(room.maxBuyin, Math.max(room.minBuyin, 1000)));
@@ -456,25 +371,30 @@ export class GameManager {
           ? room.blackjackEngine.seats.length
           : 0;
 
-    if (humanCount === 0 && room.hostId !== 'system' && !room.tournamentId) {
-      // Revert to waiting and clear bots/timers when all humans have left
+    // Last human leaves: close the table and release its code immediately.
+    // A saved table *setup* may be used to create a NEW room another day,
+    // but there is never an empty room waiting to be accidentally joined.
+    if (humanCount === 0) {
       if (room.nextRoundTimer) clearTimeout(room.nextRoundTimer);
       if (room.turnTimer) clearTimeout(room.turnTimer);
       if (room.botTimer) clearTimeout(room.botTimer);
-      if (room.pokerEngine) {
-        room.pokerEngine.seats = [];
-        room.pokerEngine.street = 'waiting';
-        room.pokerEngine.currentTurnUserId = null;
-        room.pokerEngine.turnExpiresAt = null;
-        room.pokerEngine.nextHandAt = null;
+      room.status = 'closed';
+      this.broadcastRoomState(room.id);
+      for (const client of this.clients) {
+        if (client.roomId === room.id) {
+          this.sendJson(client.ws, { type: 'room:closed', roomId: room.id });
+          client.roomId = null;
+        }
       }
-      room.status = 'waiting';
+      this.rooms.delete(room.id);
+      this.roomCodeToId.delete(room.code);
+    } else {
+      this.broadcastRoomState(room.id);
     }
 
     this.dataStore.onlineUsers.set(userId, { roomId: null, roomName: null, lastPing: Date.now() });
-    this.broadcastRoomState(room.id);
     this.broadcastLobbyUpdate();
-    return { ok: true, returnedChips: room.tournamentId ? 0 : remaining };
+    return { ok: true, returnedChips: remaining };
   }
 
   private pickBotPersona(usedNames: Set<string>): { username: string; avatarId: string } {
