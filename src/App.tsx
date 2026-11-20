@@ -435,7 +435,7 @@ const ClubShell: React.FC = () => {
       </header>
 
       {/* Main Content Workspace */}
-      <main className="flex-1 pb-20 md:pb-8">
+      <main className="flex-1 pb-24 md:pb-8">
         {screen === 'lobby' && <MainLobbyView onNavigate={handleNavigate} pendingFriendRequests={pendingFriendRequests} isOwner={isOwner} />}
 
         {screen === 'holdem_browser' && (
@@ -576,15 +576,14 @@ const ClubShell: React.FC = () => {
         Midnight Poker Club · Where Legends Go All In. · Virtual chips for social entertainment only · No monetary value or real-money wagering
       </footer>
 
-      {/* Mobile Bottom Tab Bar (Home, Games, Tournament, Friends, Inbox, Profile) */}
+      {/* Five clear mobile tabs; tournaments stay one tap away on Home and desktop. */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-sky-400/20 bg-[#080d1e]/95 backdrop-blur-xl px-2 py-1.5 grid grid-cols-6 gap-0.5 shadow-[0_-8px_24px_rgba(0,0,0,0.6)]"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-sky-400/20 bg-[#080d1e]/95 backdrop-blur-xl px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] grid grid-cols-5 gap-1 shadow-[0_-8px_24px_rgba(0,0,0,0.6)]"
       >
         {[
           { id: 'lobby' as AppScreen, label: 'Home', icon: Home, active: screen === 'lobby' },
           { id: 'holdem_browser' as AppScreen, label: 'Games', icon: Spade, active: isGamesActive },
-          { id: 'tournament_browser' as AppScreen, label: 'Tournament', icon: Trophy, active: isEventsActive },
           { id: 'friends' as AppScreen, label: 'Friends', icon: Users, active: screen === 'friends' },
           { id: 'inbox' as AppScreen, label: 'Inbox', icon: Mail, active: screen === 'inbox' },
           { id: 'profile' as AppScreen, label: 'Profile', icon: User, active: screen === 'profile' || screen === 'settings' || screen === 'wallet' },
@@ -593,9 +592,9 @@ const ClubShell: React.FC = () => {
             key={tab.id}
             type="button"
             onClick={() => setScreen(tab.id)}
-            className={`flex flex-col items-center justify-center py-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold transition min-h-[44px] ${
+            className={`flex flex-col items-center justify-center py-2 rounded-2xl text-[11px] sm:text-xs font-semibold transition min-h-[52px] ${
               tab.active
-                ? 'btn-glossy btn-glossy-blue text-white shadow-[0_0_16px_rgba(56,189,248,0.45)]'
+                ? 'btn-glossy btn-glossy-blue text-white shadow-[0_0_20px_rgba(57,147,255,0.55)] border border-fuchsia-300/70'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
