@@ -52,7 +52,7 @@ export const MainLobbyView: React.FC<{
   isOwner?: boolean;
 }> = ({ onNavigate, pendingFriendRequests = 0, isOwner = false }) => {
   const { user, wallet, activeRoom, stats } = useAuth();
-  const { lobbyRooms, lobbyTournaments, refreshLobby } = useGameSocket();
+  const { lobbyRooms, lobbyTournaments, refreshLobby, multiplayerAvailable } = useGameSocket();
 
   useEffect(() => {
     void refreshLobby();
@@ -64,6 +64,12 @@ export const MainLobbyView: React.FC<{
 
   return (
     <div className="royal-home casino-screen mx-auto w-full max-w-5xl px-3 pb-6 pt-3 sm:px-6 sm:pt-5">
+      {multiplayerAvailable === false && (
+        <div role="status" className="mb-4 rounded-2xl border border-amber-400/50 bg-amber-950/40 p-3 text-sm text-amber-100">
+          <strong className="block">Live game tables temporarily offline</strong>
+          We're connecting a reliable multiplayer server. Your account, friends and virtual chips are still available.
+        </div>
+      )}
       {activeRoom && (
         <div className="royal-resume">
           <div className="min-w-0">
@@ -277,6 +283,7 @@ export const CreatePrivateRoomView: React.FC<{
   onBack: () => void;
 }> = ({ onCreated, onJoinExisting, onBack }) => {
   const { refreshWallet } = useAuth();
+  const { multiplayerAvailable } = useGameSocket();
   const [gameType, setGameType] = useState<GameType>('holdem');
   const [name, setName] = useState('Friends Table');
   const [maxPlayers, setMaxPlayers] = useState(6);
@@ -325,6 +332,10 @@ export const CreatePrivateRoomView: React.FC<{
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (multiplayerAvailable !== true) {
+      setError('Live tables are temporarily offline. No virtual chips were charged.');
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -358,6 +369,11 @@ export const CreatePrivateRoomView: React.FC<{
 
   return (
     <div className="max-w-xl mx-auto p-4 sm:p-6 space-y-5">
+      {multiplayerAvailable === false && (
+        <p role="status" className="rounded-2xl border border-amber-400/45 bg-amber-950/35 p-4 text-sm text-amber-100">
+          Creating tables is paused until the multiplayer server is connected. No chips will be deducted.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <button type="button" onClick={onBack} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full btn-glossy btn-glossy-dark flex items-center justify-center text-slate-200 shrink-0">
