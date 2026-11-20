@@ -32,17 +32,14 @@ async function startServer(statelessRuntime: boolean) {
 }
 
 describe('hosted multiplayer reliability', () => {
-  it('retains stable public table IDs after a game server restart', () => {
+  it('starts without any pre-created poker or blackjack tables', () => {
     const first = createNeonPokerServer();
     const restarted = createNeonPokerServer();
     try {
-      const house = ['MIDN50', 'CYBR20', 'VIP21X'];
-      for (const code of house) {
-        const original = first.gameManager.roomCodeToId.get(code);
-        const replacement = restarted.gameManager.roomCodeToId.get(code);
-        expect(original).toBeTruthy();
-        expect(replacement).toBe(original);
-      }
+      expect(first.gameManager.rooms.size).toBe(0);
+      expect(restarted.gameManager.rooms.size).toBe(0);
+      expect(first.gameManager.roomCodeToId.size).toBe(0);
+      expect(restarted.gameManager.roomCodeToId.size).toBe(0);
     } finally {
       first.gameManager.cleanup();
       restarted.gameManager.cleanup();
@@ -79,29 +76,60 @@ describe('hosted multiplayer reliability', () => {
     }
   });
 
-  it('joins both official Holdem and Blackjack tables on a single game process', async () => {
+  it('creates and joins on-demand Holdem and Blackjack tables, then removes them when empty', async () => {
     const server = await startServer(false);
     try {
       const alice = await server.register('stability-alice@test.example', 'StabilityAlice');
       const bob = await server.register('stability-bob@test.example', 'StabilityBob');
-      const listed = await server.request('/api/rooms', 'GET', alice.token);
-      expect(listed.status).toBe(200);
-      expect(listed.body.rooms).toHaveLength(3);
-      for (const gameType of ['holdem', 'blackjack']) {
-        const room = listed.body.rooms.find((r: {gameType: string}) => r.gameType === gameType);
-        expect(room).toBeTruthy();
-        const joined = await server.request('/api/rooms/join', 'POST',
-          gameType === 'holdem' ? alice.token : bob.token,
-          { roomIdOrCode: room.id, buyinAmount: 1000 });
+      expect((await server.request('/api/rooms', 'GET', alice.token)).body.rooms).toHaveLength(0);
+
+      for (const gameType of ['holdem', 'blackjack'] as const) {
+        const creator = gameType === 'holdem' ? alice : bob;
+        const guest = gameType === 'holdem' ? bob : alice;
+        const created = await server.request('/api/rooms', 'POST', creator.token, {
+          name: 'Friends ' + gameType,
+          gameType,
+          visibility: 'public',
+          maxPlayers: 4,
+          minBuyin: 500,
+          maxBuyin: 5000,
+          buyinAmount: 1000,
+        });
+        expect(created.status).toBe(201);
+        expect(created.body.room.playerCount).toBe(1);
+        const roomId = created.body.room.id;
+        const publicList = await server.request('/api/rooms', 'GET', guest.token);
+        expect(publicList.body.rooms.some((r: { id: string }) => r.id === roomId)).toBe(true);
+        const joined = await server.request('/api/rooms/join', 'POST', guest.token, {
+          roomIdOrCode: created.body.room.code,
+          buyinAmount: 1000,
+        });
         expect(joined.status).toBe(200);
-        expect(joined.body.room.id).toBe(room.id);
-        const view = await server.request('/api/rooms/' + room.id, 'GET',
-          gameType === 'holdem' ? alice.token : bob.token);
-        expect(view.status).toBe(200);
-        expect(view.body.room.playerCount).toBe(1);
+        expect(joined.body.room.id).toBe(roomId);
+        expect(joined.body.room.playerCount).toBe(2);
+        expect((await server.request('/api/rooms/' + roomId, 'GET', guest.token)).status).toBe(200);
+
+        expect((await server.request('/api/rooms/' + roomId + '/leave', 'POST', guest.token)).status).toBe(200);
+        expect((await server.request('/api/rooms/' + roomId + '/leave', 'POST', creator.token)).status).toBe(200);
+        expect((await server.request('/api/rooms/' + roomId, 'GET', guest.token)).status).toBe(404);
+        expect((await server.request('/api/rooms', 'GET', alice.token)).body.rooms).toHaveLength(0);
+        expect(server.gameManager.roomCodeToId.has(created.body.room.code)).toBe(false);
       }
+
+      const failed = await server.request('/api/rooms', 'POST', alice.token, {
+        name: 'Unfunded Ghost Table',
+        gameType: 'holdem',
+        visibility: 'public',
+        maxPlayers: 2,
+        minBuyin: 999999,
+        maxBuyin: 999999,
+        buyinAmount: 999999,
+      });
+      expect(failed.status).toBe(400);
+      expect((await server.request('/api/rooms', 'GET', alice.token)).body.rooms).toHaveLength(0);
     } finally {
       await server.close();
     }
   });
+
 });
