@@ -431,6 +431,8 @@ export interface ChatMessageItem {
   senderUsername: string;
   senderAvatarId: string;
   recipientId?: string;
+  recipientUsername?: string;
+  recipientAvatarId?: string;
   message: string;
   isEmote: boolean;
   createdAt: string;
