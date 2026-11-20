@@ -168,7 +168,8 @@ export const RoomBrowserView: React.FC<{
     void refreshLobby();
   }, [refreshLobby]);
 
-  const rooms = multiplayerAvailable === true ? lobbyRooms.filter((r) => r.gameType === gameType) : [];
+  // Show only human-created tables with at least one seated player.
+  const rooms = multiplayerAvailable === true ? lobbyRooms.filter((r) => r.gameType === gameType && r.playerCount > 0) : [];
 
   const handleJoin = async (room: GameRoomSummary) => {
     if (multiplayerAvailable !== true) return;
@@ -225,6 +226,13 @@ export const RoomBrowserView: React.FC<{
         </div>
       )}
       {multiplayerAvailable === null && <p role="status" className="text-sm text-slate-300">Checking live tables…</p>}
+      {multiplayerAvailable === true && rooms.length === 0 && (
+        <section className="rounded-[24px] border border-amber-400/45 bg-slate-950/70 p-6 text-center space-y-3" aria-label="No active tables">
+          <h2 className="text-lg font-display font-bold text-white">No active {gameType === 'holdem' ? "Hold'em" : 'Blackjack'} tables yet</h2>
+          <p className="text-sm text-slate-300">Tables appear here when someone creates one. Be the first to host a game!</p>
+          <button type="button" onClick={onCreateRoom} className="btn-glossy btn-glossy-gold px-5 py-3 rounded-full font-bold text-slate-950 text-sm">+ Create a Table</button>
+        </section>
+      )}
       {error && <div role="alert" className="rounded-2xl bg-rose-500/15 border border-rose-500/40 px-4 py-2.5 text-xs text-rose-300">{error}</div>}
 
       <div className="space-y-3.5">
@@ -386,17 +394,17 @@ export const CreatePrivateRoomView: React.FC<{
         </button>
       </div>
 
-      {savedTables.length > 0 && (
+      {multiplayerAvailable === true && savedTables.length > 0 && (
         <section className="neon-casino-panel glass-bubbly rounded-[26px] p-4 space-y-3">
-          <h2 className="font-display font-bold text-sm text-amber-300">Your Saved Club Tables</h2>
-          <p className="text-xs text-slate-400">Reopen a familiar table with its previous blinds and seat limits. A fresh game starts.</p>
+          <h2 className="font-display font-bold text-sm text-amber-300">Saved Table Setups</h2>
+          <p className="text-xs text-slate-400">These aren't live tables. Reopening one creates a new game with the same settings.</p>
           {savedTables.map((item) => (
             <div key={item.id} className="input-bubbly rounded-2xl p-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-white font-bold text-sm truncate">{item.name}</p>
                 <p className="text-xs text-slate-400">{item.game_type === 'holdem' ? 'Poker' : 'Blackjack'} · {item.max_players} seats</p>
               </div>
-              <button type="button" disabled={reopening !== null}
+              <button type="button" disabled={reopening !== null || multiplayerAvailable !== true}
                 onClick={() => void reopenSavedTable(item.id)}
                 className="btn-glossy btn-glossy-blue text-white font-bold text-xs rounded-full px-4 py-2 shrink-0 disabled:opacity-60">
                 {reopening === item.id ? 'Opening…' : 'Reopen'}
