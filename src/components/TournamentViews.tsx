@@ -25,7 +25,7 @@ export const TournamentBrowserView: React.FC<{
   onJoinRoom: (roomId: string) => void;
   onBack: () => void;
 }> = ({ onCreateTournament, onOpenTournament, onJoinRoom, onBack }) => {
-  const { lobbyTournaments, refreshLobby } = useGameSocket();
+  const { lobbyTournaments, refreshLobby, multiplayerAvailable } = useGameSocket();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [joinCode, setJoinCode] = useState('');
@@ -43,6 +43,10 @@ export const TournamentBrowserView: React.FC<{
 
   const handleJoinCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (multiplayerAvailable !== true) {
+      setError('Tournaments are temporarily offline while we connect the game server.');
+      return;
+    }
     setError(null);
     try {
       const res = await apiFetch<{ tournament: TournamentSummary }>('/api/tournaments/join', {
@@ -81,6 +85,7 @@ export const TournamentBrowserView: React.FC<{
         <button
           type="button"
           onClick={onCreateTournament}
+          disabled={multiplayerAvailable !== true}
           className="inline-flex items-center justify-center gap-1.5 rounded-full btn-glossy btn-glossy-green px-3.5 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-sm font-display font-extrabold text-slate-950 whitespace-nowrap shrink-0 max-w-full"
         >
           <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
@@ -88,6 +93,7 @@ export const TournamentBrowserView: React.FC<{
         </button>
       </div>
 
+      {multiplayerAvailable === false && <p role="status" className="rounded-2xl border border-amber-400/45 bg-amber-950/35 p-4 text-sm text-amber-100">Tournaments are temporarily offline while we connect the live game server. No chips will be charged.</p>}
       {error && (
         <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-300">
           {error}
@@ -105,6 +111,7 @@ export const TournamentBrowserView: React.FC<{
           />
           <button
             type="submit"
+            disabled={multiplayerAvailable !== true}
             className="rounded-full btn-glossy btn-glossy-blue px-5 py-2.5 text-xs font-bold text-white whitespace-nowrap"
           >
             Join Code
@@ -132,6 +139,7 @@ export const TournamentBrowserView: React.FC<{
           <button
             type="button"
             onClick={onCreateTournament}
+            disabled={multiplayerAvailable !== true}
             className="inline-flex items-center gap-2 rounded-full btn-glossy btn-glossy-gold px-6 py-2.5 text-xs font-display font-extrabold text-slate-950"
           >
             <Plus className="w-4 h-4" /> Create First Tournament
@@ -192,6 +200,7 @@ export const CreateTournamentView: React.FC<{
   onBack: () => void;
 }> = ({ onCreated, onBack }) => {
   const { refreshWallet } = useAuth();
+  const { multiplayerAvailable } = useGameSocket();
   const [name, setName] = useState('Friday Night Poker');
   const [startingChips, setStartingChips] = useState(5000);
   const [blindIntervalMinutes, setBlindIntervalMinutes] = useState(10);
@@ -211,6 +220,10 @@ export const CreateTournamentView: React.FC<{
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (multiplayerAvailable !== true) {
+      setError('Tournaments are temporarily offline. No virtual chips were charged.');
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -257,6 +270,7 @@ export const CreateTournamentView: React.FC<{
         </div>
       </div>
 
+      {multiplayerAvailable === false && <p role="status" className="rounded-2xl border border-amber-400/45 bg-amber-950/35 p-4 text-sm text-amber-100">Creating tournaments is paused until the multiplayer server is ready. No chips will be charged.</p>}
       {error && <div className="rounded-2xl bg-rose-500/15 border border-rose-500/40 px-4 py-2.5 text-xs text-rose-300">{error}</div>}
 
       <form onSubmit={handleSubmit} className="rounded-[30px] glass-bubbly p-5 sm:p-6 space-y-4">
@@ -429,7 +443,7 @@ export const CreateTournamentView: React.FC<{
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || multiplayerAvailable !== true}
           className="w-full py-3.5 rounded-full btn-glossy btn-glossy-green text-slate-950 font-display font-extrabold text-sm disabled:opacity-50"
         >
           {submitting ? 'Creating...' : 'Create Tournament'}
