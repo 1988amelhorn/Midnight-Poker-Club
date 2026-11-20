@@ -52,6 +52,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [lobbyRooms, setLobbyRooms] = useState<GameRoomSummary[]>([]);
   const [lobbyTournaments, setLobbyTournaments] = useState<TournamentSummary[]>([]);
   const [multiplayerAvailable, setMultiplayerAvailable] = useState<boolean | null>(null);
+  const multiplayerAvailableRef = useRef<boolean | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [friendRequestRefreshVersion, setFriendRequestRefreshVersion] = useState(0);
 
@@ -59,18 +60,21 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!token) {
       setLobbyRooms([]);
       setLobbyTournaments([]);
+      multiplayerAvailableRef.current = null;
       setMultiplayerAvailable(null);
       return;
     }
     try {
       const rData = await apiFetch<{ rooms: GameRoomSummary[]; multiplayerAvailable?: boolean }>('/api/rooms');
       if (rData.multiplayerAvailable === false) {
+        multiplayerAvailableRef.current = false;
         setMultiplayerAvailable(false);
         setLobbyRooms([]);
         setLobbyTournaments([]);
         return;
       }
       setLobbyRooms(rData.rooms || []);
+      multiplayerAvailableRef.current = true;
       setMultiplayerAvailable(true);
       try {
         const tData = await apiFetch<{ tournaments: TournamentSummary[] }>('/api/tournaments');
@@ -82,6 +86,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Never continue showing a room ID from a stale/unreachable server.
       setLobbyRooms([]);
       setLobbyTournaments([]);
+      multiplayerAvailableRef.current = false;
       setMultiplayerAvailable(false);
     }
   }, [token]);
@@ -106,12 +111,13 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   useEffect(() => {
-    if (!token) {
+    if (!token || multiplayerAvailable === false) {
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
       setWsConnected(false);
+      setReconnecting(false);
       return;
     }
 
@@ -172,7 +178,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           } else if (msg.type === 'lobby:update') {
             // HTTP availability decides whether serverless room IDs are valid.
             // A socket broadcast must never resurrect phantom rooms.
-            if (multiplayerAvailable !== false) {
+            if (multiplayerAvailableRef.current !== false) {
               if (msg.rooms) setLobbyRooms(msg.rooms);
               if (msg.tournaments) setLobbyTournaments(msg.tournaments);
             }
@@ -240,7 +246,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         wsRef.current = null;
       }
     };
-  }, [token, refreshLobby, refreshWallet, refreshSession, loadRoomSnapshot, loadTournamentSnapshot]);
+  }, [token, multiplayerAvailable, refreshLobby, refreshWallet, refreshSession, loadRoomSnapshot, loadTournamentSnapshot]);
 
   const subscribeRoom = useCallback((roomId: string | null) => {
     activeRoomIdRef.current = roomId;
