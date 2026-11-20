@@ -447,6 +447,7 @@ const ClubShell: React.FC = () => {
             gameType="holdem"
             onEnterRoom={enterRoom}
             onCreateRoom={() => setScreen('create_private')}
+            onPractice={() => setScreen('practice_poker')}
             onBack={() => setScreen('lobby')}
           />
         )}
@@ -456,6 +457,7 @@ const ClubShell: React.FC = () => {
             gameType="blackjack"
             onEnterRoom={enterRoom}
             onCreateRoom={() => setScreen('create_private')}
+            onPractice={() => setScreen('practice_poker')}
             onBack={() => setScreen('lobby')}
           />
         )}
