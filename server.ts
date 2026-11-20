@@ -573,7 +573,12 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
     });
     if (!joined.ok || !joined.room) {
       const newRoom = gameManager.rooms.get(created.room.id);
-      if (newRoom) newRoom.status = 'closed';
+      if (newRoom) {
+        newRoom.status = 'closed';
+        gameManager.rooms.delete(newRoom.id);
+        gameManager.roomCodeToId.delete(newRoom.code);
+        gameManager.broadcastLobbyUpdate();
+      }
       openedClubPresets.delete(preset.id);
       return res.status(400).json({ error: joined.error || 'Unable to sit at table' });
     }
@@ -637,7 +642,18 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
       password: body.password ? String(body.password) : undefined,
       buyinAmount: buyin,
     });
-    if (!joined.ok) return res.status(400).json({ error: joined.error });
+    if (!joined.ok) {
+      // Creation isn't a real live table until the host has a seat.
+      // On failed buy-in, discard the empty room instead of listing a ghost.
+      const empty = gameManager.rooms.get(created.room.id);
+      if (empty && gameManager.getRoomPlayerCount(empty) === 0) {
+        empty.status = 'closed';
+        gameManager.rooms.delete(empty.id);
+        gameManager.roomCodeToId.delete(empty.code);
+        gameManager.broadcastLobbyUpdate();
+      }
+      return res.status(400).json({ error: joined.error });
+    }
 
     let latestRoom = joined.room!;
     const botDifficulty: BotDifficulty =
