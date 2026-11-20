@@ -348,15 +348,6 @@ const ClubShell: React.FC = () => {
               </div>
             </button>
 
-            <span className="hidden lg:inline-block h-5 w-px bg-slate-800 mx-1" />
-            <button
-              type="button"
-              onClick={() => setScreen('lobby')}
-              className="hidden lg:inline-flex items-center gap-1.5 font-display font-extrabold text-sm tracking-wide bg-gradient-to-r from-cyan-300 via-sky-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap"
-              title="Midnight Poker Club — Where Legends Go All In."
-            >
-              MIDNIGHT <span className="text-amber-300">POKER CLUB</span>
-            </button>
           </div>
 
           {/* The exact custom emblem is shared by the authenticated header and login. */}
