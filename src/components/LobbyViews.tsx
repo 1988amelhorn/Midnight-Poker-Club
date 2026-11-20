@@ -622,8 +622,8 @@ export const CreatePrivateRoomView: React.FC<{
 
         <button
           type="submit"
-          disabled={submitting}
-          className="w-full py-3.5 rounded-full btn-glossy btn-glossy-purple text-white font-display font-extrabold text-sm"
+          disabled={submitting || multiplayerAvailable !== true}
+          className="w-full py-3.5 rounded-full btn-glossy btn-glossy-purple text-white font-display font-extrabold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {submitting ? 'Creating Table...' : 'Create Table'}
         </button>
@@ -638,7 +638,7 @@ export const JoinPrivateRoomView: React.FC<{
   onBack: () => void;
 }> = ({ prefillCode = '', onJoined, onBack }) => {
   const { refreshWallet } = useAuth();
-  const { lobbyRooms } = useGameSocket();
+  const { lobbyRooms, multiplayerAvailable } = useGameSocket();
   const [code, setCode] = useState(prefillCode);
   const [password, setPassword] = useState('');
   const [buyinAmount, setBuyinAmount] = useState(500);
@@ -647,6 +647,10 @@ export const JoinPrivateRoomView: React.FC<{
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (multiplayerAvailable !== true) {
+      setError('Live tables are temporarily offline. No virtual chips were charged.');
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -669,6 +673,11 @@ export const JoinPrivateRoomView: React.FC<{
 
   return (
     <div className="max-w-lg mx-auto p-4 sm:p-6 space-y-5">
+      {multiplayerAvailable === false && (
+        <p role="status" className="rounded-2xl border border-amber-400/45 bg-amber-950/35 p-4 text-sm text-amber-100">
+          Joining private tables is paused while the live game server is being connected. No chips will be deducted.
+        </p>
+      )}
       <div className="flex items-center gap-3">
         <button type="button" onClick={onBack} className="w-10 h-10 rounded-full btn-glossy btn-glossy-dark flex items-center justify-center text-slate-200">
           <ChevronLeft className="w-5 h-5" />
@@ -717,8 +726,8 @@ export const JoinPrivateRoomView: React.FC<{
 
         <button
           type="submit"
-          disabled={submitting}
-          className="w-full py-3.5 rounded-full btn-glossy btn-glossy-blue text-white font-display font-extrabold text-sm"
+          disabled={submitting || multiplayerAvailable !== true}
+          className="w-full py-3.5 rounded-full btn-glossy btn-glossy-blue text-white font-display font-extrabold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {submitting ? 'Joining...' : 'Join Table'}
         </button>
