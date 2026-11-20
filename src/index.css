@@ -391,3 +391,224 @@ body {
   .btn-glossy, .neon-lobby-tile { transition: none; }
   .btn-glossy:hover:not(:disabled), .neon-lobby-tile:hover { transform: none; }
 }
+
+
+/* Extreme Neon home: scoped to the lobby so real poker/blackjack gameplay remains untouched. */
+.midnight-home.casino-screen {
+  --home-blue: #15c9ff;
+  --home-gold: #ffc128;
+  --home-pink: #ff2bd6;
+  --home-green: #00eea7;
+  --home-red: #ff376f;
+  --home-purple: #ae4cff;
+  min-height: 100%;
+  background:
+    radial-gradient(ellipse at 50% 0, rgba(114, 42, 248, .32), transparent 39%),
+    radial-gradient(ellipse at 100% 60%, rgba(95, 22, 170, .12), transparent 46%),
+    #060417;
+}
+.midnight-home button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.midnight-home button:focus-visible { outline: 3px solid #fef9c3; outline-offset: 4px; }
+.midnight-home button:active { transform: translateY(1px) scale(.985); }
+.midnight-home-hero {
+  position: relative;
+  min-height: 113px;
+  margin: 0 auto 15px;
+  padding: 5px 10px 8px;
+  isolation: isolate;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+.midnight-home-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: min(75%, 440px);
+  height: 72px;
+  background: radial-gradient(ellipse, rgba(166, 70, 255, .32), transparent 70%);
+  filter: blur(18px);
+}
+.midnight-home-hero-spade {
+  display: block;
+  font-size: 39px;
+  line-height: .95;
+  color: #e9ccff;
+  text-shadow: 0 0 7px #d04cff, 0 0 21px #aa40ff, 0 0 35px #7928ef;
+}
+.midnight-home-hero h1 {
+  margin-top: 5px;
+  font: 900 clamp(28px, 7.4vw, 55px)/.95 var(--font-display);
+  font-style: italic;
+  letter-spacing: .035em;
+  color: #fff;
+  text-shadow: 0 3px 2px #31204b, 0 0 23px rgba(191, 113, 255, .6);
+}
+.midnight-home-hero p {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  color: #ff70e8;
+  font: 800 clamp(11px, 3vw, 20px)/1.15 var(--font-display);
+  letter-spacing: .31em;
+  text-shadow: 0 0 13px #d91edc;
+}
+.midnight-home-hero p span { width: 30px; height: 2px; background: linear-gradient(90deg, transparent, #ff49d6); }
+.midnight-home-hero p span:last-child { transform: rotate(180deg); }
+.midnight-home-suit { position: absolute; z-index: -1; font-size: 65px; opacity: .28; filter: drop-shadow(0 0 16px currentColor); }
+.midnight-home-suit-left { left: 9%; top: 0; color: #32aaff; transform: rotate(-20deg); }
+.midnight-home-suit-right { right: 10%; top: 0; color: #ff3fcf; transform: rotate(20deg); }
+
+.midnight-home-resume,
+.midnight-home-owner {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; gap: 12px; margin-bottom: 12px; padding: 10px 13px;
+  border: 1px solid #31e6ac; border-radius: 17px;
+  background: linear-gradient(110deg, #074638, #072534 80%);
+  box-shadow: 0 0 14px #04b58055;
+}
+.midnight-home-eyebrow { font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: .08em; color: #91ffda; }
+.midnight-home-owner { justify-content: flex-start; color: #ffdf8c; border-color: #f9b42b; background: linear-gradient(90deg, #332108, #15152d); font-weight: 800; }
+
+.midnight-home-features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+.midnight-home-mode {
+  position: relative; isolation: isolate; overflow: hidden;
+  display: flex; flex-direction: column; align-items: flex-start;
+  min-width: 0; min-height: 178px;
+  padding: 14px 12px 12px; text-align: left; border-radius: 23px;
+  border: 2px solid var(--mode); color: white;
+  background: radial-gradient(ellipse at 88% 38%, var(--glow), transparent 58%), linear-gradient(135deg, var(--panel), #08091d 85%);
+  box-shadow: inset 0 2px 0 #ffffff37, inset 0 -8px 18px #01030bad, 0 0 13px var(--shadow), 0 9px 26px #01020b91;
+  transition: filter .15s ease, transform .15s ease;
+}
+.midnight-home-mode:hover { filter: brightness(1.12); }
+.midnight-home-private { --mode:#10c5ff; --glow:#086cb4a9; --panel:#062e53; --shadow:#00b9ff85; }
+.midnight-home-tournament { --mode:#ffbd19; --glow:#ce780b99; --panel:#3b200b; --shadow:#eaa20a70; }
+.midnight-home-mode-icon { position: relative; z-index: 1; display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: auto; border-radius: 12px; color: #fff; background: #ffffff13; border: 1px solid var(--mode); box-shadow: 0 0 14px var(--shadow); }
+.midnight-home-mode-title { position: relative; z-index: 1; font: 900 clamp(14px, 3.7vw, 25px)/1.06 var(--font-display); letter-spacing: -.02em; text-shadow: 0 2px 7px #000b; }
+.midnight-home-mode-subtitle { position: relative; z-index: 1; display: block; margin-top: 8px; padding-right: 16px; color: #bbdef2; font-size: clamp(10px, 2.65vw, 14px); line-height: 1.23; }
+.midnight-home-tournament .midnight-home-mode-subtitle { color: #ffe6a0; }
+.midnight-home-arrow { position: absolute; right: 10px; bottom: 9px; z-index: 1; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #02081688; border: 1px solid var(--mode); color: #fff; }
+.midnight-home-mode-art { position: absolute; pointer-events: none; }
+.midnight-home-card-art { right: -12px; top: 19px; width: 105px; height: 115px; transform: rotate(22deg); }
+.midnight-home-card-art > span { position: absolute; right: 20px; top: 22px; display: grid; place-items: start; padding: 12px 7px; width: 72px; height: 105px; border: 3px solid #d1e6ff; border-radius: 10px; background: linear-gradient(135deg,#eaf1ff,#6d9cdd); font: 900 20px/1 var(--font-display); color: #0c1753; box-shadow: 0 0 17px #68bdff; }
+.midnight-home-card-art i { position: absolute; right: -1px; top: -5px; width: 32px; height: 20px; border: 5px solid #72d7ff; border-radius: 50%; background: #004b9a; box-shadow: 0 7px 0 #0c327c, 0 13px 0 #06194c; }
+.midnight-home-card-art i:last-child { right: 31px; top: -16px; transform: scale(.72); }
+.midnight-home-trophy-art { right: 10px; top: 23px; width: 87px; height: 87px; color: #ffde5c; filter: drop-shadow(0 0 13px #ffac21); stroke-width: 1.4; opacity: .9; }
+
+.midnight-home-quickplay { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+.midnight-home-quick {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  padding: 10px 9px; min-height: 45px;
+  border-radius: 15px; border: 1px solid var(--quick-line);
+  color: #f8f9ff; background: linear-gradient(110deg, var(--quick-bg), #0b0c24);
+  box-shadow: 0 0 10px var(--quick-shadow);
+  font-size: 12px; font-weight: 800; white-space: nowrap;
+}
+.midnight-home-quick > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.midnight-home-quick > svg:first-child { color: var(--quick-line); flex-shrink: 0; }
+.midnight-home-quick > svg:last-child { color: #b5bfd3; margin-left: auto; flex-shrink: 0; }
+.midnight-home-quick small { font-size: 10px; color: #d1c6ed; font-weight: 500; }
+.midnight-home-holdem { --quick-line:#ae67ff; --quick-bg:#311456; --quick-shadow:#a855f744; }
+.midnight-home-blackjack { --quick-line:#ff508d; --quick-bg:#4e1737; --quick-shadow:#f6377744; }
+
+.midnight-home-dashboard { display: grid; gap: 12px; margin-top: 16px; }
+.midnight-home-strip {
+  --strip:#b25dff; --flare:#b25dff55; --surface:#231254;
+  display: grid; grid-template-columns: 70px minmax(0,1fr) auto;
+  align-items: center; min-height: 100px; gap: 11px;
+  padding: 11px 13px 11px 7px;
+  border-radius: 23px; border: 2px solid var(--strip);
+  background: radial-gradient(ellipse at 4% 45%, var(--flare),transparent 55%), linear-gradient(115deg,var(--surface),#0c0d2d 90%);
+  box-shadow: inset 0 2px 0 #ffffff2e, inset 0 -6px 12px #01020b8c, 0 0 14px var(--flare), 0 8px 20px #0008;
+  min-width: 0; overflow: hidden;
+}
+.midnight-home-bonus { --strip:#e8a331; --flare:#ffb32666; --surface:#43200b; }
+.midnight-home-wheel-strip { --strip:#c12cf1; --flare:#f10bde78; --surface:#3a0a5e; }
+.midnight-home-wallet-strip { --strip:#04d99b; --flare:#04e2a56e; --surface:#063c35; min-height: 86px; }
+.midnight-home-record-strip { --strip:#e02a69; --flare:#ff347b5c; --surface:#4b0929; min-height: 84px; }
+.midnight-home-friends-strip { --strip:#09bdf1; --flare:#16d4ff66; --surface:#072c54; min-height: 86px; }
+.midnight-home-strip-art {
+  display: grid; place-items: center;
+  width: 67px; height: 67px;
+  color: var(--strip);
+  filter: drop-shadow(0 0 12px var(--flare));
+}
+.midnight-home-strip-art .midnight-home-dashboard-icon { width: 53px; height: 53px; stroke-width: 1.6; }
+.midnight-home-present { font-size: 56px; line-height: 1; filter: drop-shadow(0 5px 2px #0008); }
+.midnight-home-strip-copy { min-width: 0; }
+.midnight-home-strip-copy h2 { font: 800 clamp(13px, 3.9vw, 22px)/1.14 var(--font-display); color: white; }
+.midnight-home-strip-copy strong { color: #ffe454; font-weight: 900; }
+.midnight-home-strip-copy p { margin-top: 5px; font-size: clamp(10px, 2.7vw, 13px); color: #c7bdd8; line-height: 1.32; }
+.midnight-home-wallet-number { color: #ffdf3e !important; font: 900 clamp(17px,4.6vw,25px)/1 var(--font-mono); white-space: nowrap; }
+.midnight-home-wallet-number span { font: 800 12px/1 var(--font-display); }
+.midnight-home-friend-alert { vertical-align: middle; display: inline-block; padding: 3px 6px; border-radius: 999px; background: #fb3777; font-size: 10px; }
+.midnight-home-wheel {
+  position: relative; display: grid; place-items: center;
+  width: 64px; height: 64px; border: 6px solid #ffc530; border-radius: 50%;
+  background: repeating-conic-gradient(from 7deg, #6620c6 0 40deg, #f91bbe 40deg 80deg, #03b3e9 80deg 120deg);
+  box-shadow: 0 0 0 3px #ffde8a88, 0 0 18px #ff2bd8a3, inset 0 0 8px #17032c;
+}
+.midnight-home-wheel::before { content:""; position:absolute; top:-12px; border-left:7px solid transparent; border-right:7px solid transparent; border-top:11px solid #ffd43b; }
+.midnight-home-wheel span { display:grid; place-items:center; width:30px; height:30px; border:3px solid #ffd96e; border-radius:50%; color:#ffdf67; background:#3b176a; font-size:20px; }
+.midnight-home-pill {
+  position: relative; isolation: isolate; display: inline-flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+  gap: 5px; min-height: 42px; min-width: 70px;
+  padding: 9px 12px; border-radius: 999px; border: 2px solid var(--pill-line);
+  background: linear-gradient(180deg,var(--pill-top),var(--pill-mid) 52%,var(--pill-bottom));
+  box-shadow: inset 0 2px 1px #ffffffa3, inset 0 -4px 5px #0007, 0 0 15px var(--pill-glow),0 6px 12px #0009;
+  color: var(--pill-color,white); font: 900 clamp(12px,3.2vw,15px)/1 var(--font-display);
+  white-space: nowrap; text-shadow: 0 2px 2px #0006;
+  transition: transform .15s ease, filter .15s ease;
+}
+.midnight-home-pill::before { content:""; pointer-events:none; position:absolute; z-index:-1; left:8%; right:8%; top:1px; height:42%; border-radius:99px; background:linear-gradient(#fff8,#fff0); }
+.midnight-home-pill:hover { filter: brightness(1.12); }
+.midnight-home-pill-gold { --pill-top:#fff4a3; --pill-mid:#ffbc25; --pill-bottom:#ac5700; --pill-line:#ffe890; --pill-glow:#ffb01788; --pill-color:#130e1a; }
+.midnight-home-pill-magenta { --pill-top:#ffafff; --pill-mid:#df20de; --pill-bottom:#7711ab; --pill-line:#f9a8ff; --pill-glow:#fa24e7b5; }
+.midnight-home-pill-green { --pill-top:#b5ffdb; --pill-mid:#03dc91; --pill-bottom:#006b4b; --pill-line:#74ffc5; --pill-glow:#00db9699; --pill-color:#031c1a; }
+.midnight-home-pill-rose { --pill-top:#ffaacb; --pill-mid:#f6216b; --pill-bottom:#94052f; --pill-line:#ff8cbb; --pill-glow:#f7176d88; }
+.midnight-home-pill-cyan { --pill-top:#b8fbff; --pill-mid:#0bc8f7; --pill-bottom:#0861ae; --pill-line:#80ecff; --pill-glow:#00bbff94; --pill-color:#051d37; }
+.midnight-home-public {
+  position: relative; overflow: hidden;
+  margin-top: 16px; padding: 17px 16px 20px;
+  border: 2px solid #9b47f7; border-radius: 25px;
+  background: radial-gradient(ellipse at 50% 115%, #7d21c893,transparent 63%),linear-gradient(145deg,#2b0a58,#0b1033);
+  box-shadow: inset 0 2px 0 #ffffff33, 0 0 18px #812ef866;
+}
+.midnight-home-public::after { content:""; pointer-events:none; position:absolute; left:13%; right:13%; height:70px; bottom:-62px; border:5px solid #c970ff; border-radius:50%; box-shadow: 0 0 24px #b03bff; }
+.midnight-home-public-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.midnight-home-public h2 { display:flex; align-items:center; gap:8px; font: 900 clamp(16px,4vw,23px)/1.2 var(--font-display); color:white; }
+.midnight-home-public-head button { display:flex; align-items:center; gap:1px; color:#52e5ff; white-space:nowrap; font-weight:800; font-size:12px; }
+.midnight-home-public p { margin:7px 0 14px; color:#d9c7f6; font-size:12px; }
+.midnight-home-public-browse { display:flex; justify-content:center; align-items:center; gap:6px; min-height:43px; width:100%; border:1px solid #b679ff; border-radius:14px; background:linear-gradient(180deg,#8b41ee,#4c1d95); color:white; font-size:13px; font-weight:800; box-shadow:inset 0 1px #fff8, 0 0 12px #a64df777; }
+
+@media (min-width: 640px) {
+  .midnight-home-hero { min-height: 146px; }
+  .midnight-home-mode { min-height: 205px; padding: 20px; }
+  .midnight-home-mode-icon { width: 52px; height: 52px; }
+  .midnight-home-features { gap: 18px; }
+  .midnight-home-strip { grid-template-columns: 98px minmax(0,1fr) auto; min-height: 112px; padding: 15px 26px 15px 16px; gap: 18px; }
+  .midnight-home-strip-art { width: 87px; height: 82px; }
+  .midnight-home-strip-art .midnight-home-dashboard-icon { width: 70px; height: 70px; }
+  .midnight-home-wheel { width: 80px; height: 80px; }
+  .midnight-home-present { font-size: 75px; }
+  .midnight-home-pill { padding: 12px 21px; min-width: 112px; }
+}
+@media (max-width: 420px) {
+  .midnight-home-strip { grid-template-columns: 51px minmax(0,1fr) auto; gap: 7px; padding: 10px 8px 10px 5px; }
+  .midnight-home-strip-art { width: 50px; height: 60px; }
+  .midnight-home-strip-art .midnight-home-dashboard-icon { width: 42px; height: 42px; }
+  .midnight-home-present { font-size: 43px; }
+  .midnight-home-wheel { width: 50px; height: 50px; border-width: 4px; }
+  .midnight-home-wheel span { width: 25px; height: 25px; font-size: 17px; }
+  .midnight-home-pill { min-width: 61px; min-height: 40px; padding: 8px 9px; }
+  .midnight-home-quick small { display:none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .midnight-home button { transition: none !important; }
+}
