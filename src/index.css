@@ -391,3 +391,276 @@ body {
   .btn-glossy, .neon-lobby-tile { transition: none; }
   .btn-glossy:hover:not(:disabled), .neon-lobby-tile:hover { transform: none; }
 }
+
+
+/* Midnight Poker Club: original red, gold and emerald-felt casino direction.
+   These selectors are isolated to the lobby/header/login; table logic is untouched. */
+.royal-app {
+  background: radial-gradient(ellipse 90% 55% at 50% 30%, #33040c 0, #110308 70%, #050408 100%);
+}
+.royal-header {
+  background: linear-gradient(180deg, #080709 0%, #0d080b 82%, #17050b 100%);
+  border-bottom: 1px solid #b93038;
+  box-shadow: 0 2px 14px #c1153033, 0 8px 20px #000b;
+}
+.royal-header-layout { min-height: 71px; }
+.royal-header-user, .royal-top-actions { position: relative; z-index: 2; }
+.royal-profile-button { flex-shrink: 0; }
+.royal-profile-button > :first-child { border-radius: 999px; box-shadow: 0 0 0 2px #e8a32b, 0 0 12px #e5283788; }
+.royal-level-mobile { font-size: 10px; font-weight: 900; color: #f1e5d4; white-space: nowrap; }
+.royal-player-details { display: none; }
+.royal-header-brand {
+  position: absolute; z-index: 1; left: 50%; top: 50%;
+  transform: translate(-50%,-50%);
+  display: grid; place-items: center; width: clamp(130px, 39vw, 200px);
+  overflow: visible; -webkit-tap-highlight-color: transparent;
+}
+.royal-header-brand img { display:block; width:100%; height:auto; filter: drop-shadow(0 0 7px #ec192e88); }
+.royal-header-brand:focus-visible { outline: 2px solid #ffca67; outline-offset: 2px; border-radius:10px; }
+.royal-top-actions > :first-child:not(.royal-chip-pill) { display: none; }
+.royal-chip-pill {
+  border: 1px solid #a86c32;
+  background: linear-gradient(155deg, #171017, #06070b);
+  box-shadow: inset 0 1px #f3cd8a55, 0 0 10px #ed851b55;
+}
+.royal-chip-pill > button:first-child { color:#ffd76e; font-size:12px; padding:7px 5px 7px 9px; }
+.royal-chip-pill > button:first-child svg { color:#f9b939; }
+.royal-chip-pill > button:last-child { min-height:34px; border-radius:50%; padding:6px; margin:2px; }
+.royal-desktop-nav { z-index: 2; }
+.royal-mobile-nav {
+  background: linear-gradient(180deg,#101015 0%,#09090e 94%);
+  border-top: 1px solid #b05453;
+  box-shadow: 0 -5px 22px #bf183244, 0 -12px 25px #0009;
+}
+.royal-mobile-tab { color:#d4ced7; border:1px solid transparent; }
+.royal-mobile-tab svg { width:22px; height:22px; margin-bottom:4px; }
+.royal-mobile-tab-active {
+  color:white; border:1px solid #ff996e;
+  background:linear-gradient(180deg,#ff4841 0%,#ad051b 48%,#480006 100%);
+  box-shadow: inset 0 2px #fff7, inset 0 -3px #28000b, 0 0 16px #e52429aa;
+}
+.royal-mobile-tab-active svg { filter:drop-shadow(0 0 4px #ffb631); color:#ffdc89; }
+
+.royal-home.casino-screen {
+  background:
+    radial-gradient(ellipse at 50% 0%, #53091466, transparent 60%),
+    radial-gradient(ellipse at 95% 50%, #4a0c1970, transparent 50%),
+    #0d0307;
+}
+.royal-home button { cursor:pointer; transition:transform .14s ease,filter .14s ease; -webkit-tap-highlight-color:transparent; }
+.royal-home button:not(:disabled):active { transform:translateY(1px) scale(.985); }
+.royal-home button:not(:disabled):hover { filter:brightness(1.08); }
+.royal-home button:focus-visible { outline:3px solid #fce4a0; outline-offset:3px; }
+.royal-resume,.royal-owner {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:12px; margin-bottom:12px; border-radius:16px;
+  border:1px solid #cfa451; background:linear-gradient(100deg,#302019,#101118);
+  box-shadow:0 0 12px #e3a64044;
+}
+.royal-owner { color:#ffdc83; width:100%; }
+.royal-callout {
+  position:relative; display:flex; justify-content:center; align-items:center;
+  gap:12px; margin:4px 0 15px;
+  font:italic 800 clamp(18px,4.7vw,29px)/1.15 var(--font-display);
+  text-align:center; color:#f7e6e6;
+  text-shadow:0 2px 2px #000,0 0 12px #e0445388;
+}
+.royal-callout::before,.royal-callout::after {
+  content:""; flex:1 1 10%; height:2px; max-width:85px;
+  background:linear-gradient(90deg,transparent,#ff293f);
+  box-shadow:0 0 9px #ff293f;
+}
+.royal-callout::after { transform:rotate(180deg); }
+
+.royal-play-card {
+  position:relative; isolation:isolate; display:block; width:100%; height:clamp(205px,52vw,390px);
+  overflow:hidden; border-radius:40px 40px 52px 52px / 30px 30px 42px 42px;
+  background:
+    radial-gradient(ellipse at 50% 8%, #93102285,transparent 55%),
+    linear-gradient(180deg,#250408,#0a0307 60%);
+  border:3px solid #ef4e37;
+  box-shadow:inset 0 0 0 3px #ffb85999,inset 0 -10px 23px #200000,0 0 17px #ff3436aa,0 10px 23px #000b;
+}
+.royal-play-card::before {
+  content:""; position:absolute; inset:4px; border-radius:inherit;
+  border:1px solid #ffc06a; pointer-events:none; box-shadow:inset 0 0 13px #ff2e4166;
+}
+.royal-table-rail {
+  position:absolute; z-index:0; left:2%; top:18%; width:96%; height:76%;
+  border-radius:50% / 43%;
+  border:clamp(11px,3.6vw,27px) solid #3e1d0b;
+  background:radial-gradient(ellipse,#093b27 23%,#00210f 85%);
+  box-shadow:inset 0 0 0 3px #d39036,inset 0 0 31px #000,0 0 0 2px #c88033,0 0 13px #edb247;
+}
+.royal-table-felt {
+  position:absolute; z-index:0; left:7%; top:27%; width:86%; height:57%;
+  border-radius:50% / 48%;
+  background:radial-gradient(ellipse at 50% 43%,#08653a 0%,#044523 55%,#022319 100%);
+  border:2px solid #7f6d2e;
+  box-shadow:inset 0 0 32px #010b08,inset 0 0 0 2px #08653a;
+}
+.royal-table-felt::after {
+  content:""; position:absolute; inset:7% 9%; border:1px solid #e2b55136; border-radius:50%;
+}
+.royal-card-art {
+  position:absolute; z-index:1; top:3%; display:flex; flex-direction:column;
+  align-items:flex-start; width:19%; height:45%; padding:5px 10px;
+  border:2px solid #fff9dc; border-radius:10px;
+  color:#14111b; background:linear-gradient(125deg,#fff5e2,#ebdbc7 85%);
+  box-shadow:0 9px 13px #000a,0 0 9px #fff4c266;
+  font:900 clamp(20px,6vw,46px)/1 var(--font-display);
+}
+.royal-card-art b {font-size:clamp(22px,7vw,50px);line-height:1.1;}
+.royal-card-ace {left:36%;transform:rotate(-12deg);}
+.royal-card-king {left:51%;transform:rotate(13deg);color:#c60d25;}
+.royal-chip-stack { position:absolute;z-index:1;top:28%;display:flex;flex-direction:column;gap:0; }
+.royal-chip-left {left:12%;} .royal-chip-right {right:12%;}
+.royal-chip-stack i {
+  display:block;width:clamp(30px,8.3vw,76px);height:clamp(11px,2.6vw,20px);margin-top:-3px;
+  border-radius:50%;border:3px dashed #fff2e2;
+  background:linear-gradient(180deg,#ff6c59,#d41123 55%,#680515);
+  box-shadow:0 6px 0 #620b10,0 8px 5px #0008;
+}
+.royal-hero-title {
+  position:absolute;z-index:2;top:38%;left:3%;width:94%;
+  display:block;text-align:center;
+  font:900 clamp(31px,8.5vw,72px)/.91 Georgia,serif;
+  color:#ffd475;letter-spacing:-.035em;
+  text-shadow:0 2px 0 #8b3a0c,0 4px 0 #572209,0 7px 5px #000,0 0 14px #f9a53a;
+}
+.royal-hero-title strong {display:block;font-size:.93em;font-weight:900;white-space:nowrap;}
+.royal-play-button {
+  position:absolute;z-index:3;left:24%;bottom:7%;width:52%;min-height:clamp(42px,10vw,71px);
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  border:3px solid #fff3af;border-radius:999px;
+  background:linear-gradient(180deg,#fff7ca 0%,#ffd45f 24%,#ffac24 56%,#b35d06 90%);
+  box-shadow:inset 0 3px 2px #fffae6,inset 0 -5px 6px #8b3d05,0 0 17px #f5ac32,0 9px 13px #000a;
+  font:900 clamp(16px,4.6vw,31px)/1 var(--font-display);color:#520811;
+  text-shadow:0 1px 1px #fff8;
+}
+.royal-play-button svg {width:clamp(14px,5vw,25px);height:auto;}
+.royal-modes {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:15px;}
+.royal-mode {
+  position:relative;overflow:hidden;min-width:0;height:clamp(109px,27vw,192px);
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:9px 5px 10px;border:2px solid #e3b06d;border-radius:22px;
+  box-shadow:inset 0 2px 1px #ffebc866,inset 0 -6px 11px #0009,0 0 10px #eab66e55,0 9px 14px #0008;
+}
+.royal-blackjack {background:radial-gradient(ellipse at 50% 20%,#911023,#230008 90%);}
+.royal-private {background:radial-gradient(ellipse at 50% 26%,#075467,#031a25 90%);}
+.royal-tournament {background:radial-gradient(ellipse at 50% 25%,#6c136e,#1d062d 90%);}
+.royal-mode-illustration {position:relative;display:flex;align-items:center;justify-content:center;flex:1;min-height:0;color:#fff2dd;filter:drop-shadow(0 0 9px #ffde9d77);}
+.royal-private .royal-mode-illustration {color:#d8f9ff;}
+.royal-tournament .royal-mode-illustration {color:#ffce40;}
+.royal-lock {position:absolute;bottom:5%;left:36%;color:#ffc543;filter:drop-shadow(0 0 4px #e4a231);}
+.royal-mode-name {display:block;width:100%;text-align:center;color:#fff;font:900 clamp(10px,2.9vw,22px)/1.03 var(--font-display);text-shadow:0 2px 3px #000;white-space:normal;}
+.royal-mode-name span {font-size:1.2em;color:#fff6cf;line-height:.6;}
+.royal-bj-cards i {
+  display:block;width:clamp(25px,8vw,54px);height:clamp(40px,13vw,80px);
+  padding:5px 2px;border-radius:6px;border:1px solid #fff7cf;
+  background:linear-gradient(120deg,#fff5df,#e4dad2);
+  box-shadow:0 4px 10px #000a;color:#151522;text-align:center;
+  font:900 clamp(14px,4vw,29px)/1 Georgia,serif;
+}
+.royal-bj-cards i:first-child {transform:rotate(-12deg) translateX(6px);}
+.royal-bj-cards i:last-child {transform:rotate(13deg) translateX(-3px);color:#c20f22;}
+.royal-rewards,.royal-friends,.royal-ranking {
+  position:relative;display:flex;align-items:center;min-width:0;gap:11px;
+  border-radius:22px;border:2px solid #e3b05d;
+  box-shadow:inset 0 2px #ffe2a54d,inset 0 -7px 13px #0007,0 0 10px #fbbc5755,0 9px 15px #0009;
+}
+.royal-rewards {
+  margin-top:16px;min-height:91px;padding:10px;
+  background:radial-gradient(ellipse at 8% 45%,#75300d,#210b0b 75%);
+}
+.royal-reward-icon {width:50px;height:50px;flex-shrink:0;color:#ffd54e;filter:drop-shadow(0 0 8px #ffa31f);}
+.royal-reward-copy {min-width:0;flex:1;}
+.royal-reward-copy h2 {font:900 clamp(13px,3.4vw,24px)/1.08 var(--font-display);color:#ffdb75;text-shadow:0 0 7px #b75e15;}
+.royal-reward-copy p {margin-top:4px;font-size:clamp(10px,2.7vw,14px);color:#f8e9e4;line-height:1.25;}
+.royal-reward-buttons {display:flex;flex-shrink:0;gap:5px;}
+.royal-button {
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  min-height:35px;min-width:64px;padding:7px 9px;border-radius:999px;
+  border:2px solid var(--royal-button-border,#ffebaf);
+  background:linear-gradient(180deg,var(--royal-button-start,#fff6cb),var(--royal-button-mid,#ffb72a) 55%,var(--royal-button-end,#bc5b05));
+  box-shadow:inset 0 2px #ffffffb5,inset 0 -3px #0005,0 0 12px var(--royal-button-glow,#f4a72b99),0 4px 8px #0009;
+  color:var(--royal-button-color,#3b0f09);font:900 clamp(10px,2.7vw,15px)/1 var(--font-display);
+  text-shadow:0 1px #fff5;white-space:nowrap;
+}
+.royal-button-gold {--royal-button-border:#ffdf9c;--royal-button-start:#fff6c9;--royal-button-mid:#ffc74b;--royal-button-end:#a75c00;--royal-button-glow:#d78b2488;}
+.royal-button-purple {--royal-button-border:#eda8ff;--royal-button-start:#ffbaff;--royal-button-mid:#c923dd;--royal-button-end:#6c0884;--royal-button-glow:#d734e7aa;--royal-button-color:white;text-shadow:0 2px 2px #40034b;}
+.royal-button-green {--royal-button-border:#8bffd7;--royal-button-start:#b8ffe7;--royal-button-mid:#2fdb8a;--royal-button-end:#006943;--royal-button-glow:#17ad7b88;}
+.royal-button-cyan {--royal-button-border:#61f3ff;--royal-button-start:#c0fbff;--royal-button-mid:#08c6e6;--royal-button-end:#045b83;--royal-button-glow:#09cdeb98;--royal-button-color:#053247;}
+.royal-friends {
+  width:100%;margin-top:13px;min-height:85px;padding:12px 13px;text-align:left;
+  border-color:#65ccff;background:radial-gradient(ellipse at 5% 50%,#194066,#08101b 70%);
+  box-shadow:inset 0 2px #b6f1ff7a,inset 0 -6px 13px #0009,0 0 10px #20b6ff55,0 8px 13px #0009;
+}
+.royal-friends-icon {width:48px;height:48px;flex-shrink:0;color:#5de8ff;filter:drop-shadow(0 0 8px #14c5fd);}
+.royal-friends-copy {display:flex;flex:1;min-width:0;flex-direction:column;gap:3px;}
+.royal-friends-copy strong {font:900 clamp(13px,3.7vw,23px)/1.1 var(--font-display);color:#fff;}
+.royal-friends-copy small {font-size:clamp(10px,2.7vw,14px);color:#d3d0db;line-height:1.25;}
+.royal-friends-copy em {font:800 9px var(--font-display);color:white;background:#ed2c43;border-radius:99px;padding:2px 5px;vertical-align:middle;white-space:nowrap;}
+.royal-friends > .royal-button {pointer-events:none;}
+.royal-ranking {
+  justify-content:center;width:95%;min-height:48px;margin:14px auto 0;
+  padding:9px 13px;border-width:1px;border-radius:999px;
+  background:linear-gradient(160deg,#191014,#07070a);
+  color:#faf4f2;font:800 clamp(13px,3.7vw,22px)/1 var(--font-display);
+}
+.royal-ranking-divider {padding:0 7px;color:#e6b75e;}
+.royal-disclaimer {margin:15px 0 0;text-align:center;color:#8c7882;font-size:10px;}
+
+.royal-auth {
+  background:
+    radial-gradient(ellipse at 50% 0%, #791024aa, transparent 45%),
+    radial-gradient(ellipse at 50% 100%, #3e081777,transparent 56%),
+    linear-gradient(180deg,#0a0508,#13050a 48%,#060406);
+}
+.royal-auth-card {
+  border:2px solid #c88c42;
+  background:linear-gradient(155deg,#260911ee,#120910f5 48%,#09070bf9);
+  box-shadow:inset 0 1px #ffdab777,0 0 24px #d92b3a55,0 16px 43px #000d;
+}
+.royal-auth-logo-wrap {display:flex;align-items:center;justify-content:center;margin:-3px auto 4px;width:100%;}
+.royal-auth-logo {width:min(100%,315px);height:auto;object-fit:contain;filter:drop-shadow(0 0 10px #d9293677);}
+.royal-auth .input-bubbly {border-color:#946643;background:linear-gradient(180deg,#22131a,#110b0e);color:#fff;}
+.royal-auth .input-bubbly:focus {border-color:#ffcb66;box-shadow:0 0 0 2px #f9c05233;}
+.royal-auth .btn-glossy-green,.royal-auth .btn-glossy-gold {background:linear-gradient(180deg,#fff4c4,#f7be41 46%,#aa650d);color:#2d0b09;border-color:#fff0ad;box-shadow:inset 0 2px #fffae3,0 0 13px #edb231aa;}
+.royal-auth .btn-glossy-blue {background:linear-gradient(180deg,#ff7670,#d21e2b 45%,#720417);border-color:#ff9b7b;color:white;box-shadow:inset 0 2px #ffc5a8,0 0 13px #ee284b77;}
+.royal-auth .btn-glossy-dark {background:linear-gradient(180deg,#4c3038,#1a0e14 66%,#0e0b10);border-color:#94775f;box-shadow:inset 0 2px #ffe2c355,0 0 12px #9b4a4744;}
+.royal-auth-card .text-cyan-300,.royal-auth-card .text-emerald-400 {color:#ffce78;}
+
+@media (min-width:768px) {
+  .royal-header { padding-bottom:51px; }
+  .royal-header-layout {min-height:72px;}
+  .royal-header-brand {width:198px;top:37px;}
+  .royal-desktop-nav {position:absolute;top:76px;left:50%;transform:translateX(-50%);justify-content:center;width:max-content;max-width:100%;white-space:nowrap;}
+  .royal-player-details {display:block;}
+  .royal-level-mobile {display:none;}
+  .royal-top-actions > :first-child:not(.royal-chip-pill) {display:inline-flex;}
+  .royal-play-card {height:390px;}
+  .royal-mode {height:200px;}
+  .royal-reward-icon,.royal-friends-icon {width:67px;height:67px;}
+  .royal-rewards,.royal-friends {padding:18px 22px;}
+  .royal-button {min-height:44px;min-width:100px;padding:10px 16px;}
+}
+@media (min-width:1024px) {
+  .royal-header-user .hidden.lg\:inline-block,
+  .royal-header-user .hidden.lg\:inline-flex {display:none;}
+}
+@media (max-width:385px) {
+  .royal-header-brand {width:126px;}
+  .royal-chip-pill > button:first-child {padding:5px 4px;font-size:10px;}
+  .royal-chip-pill > button:first-child svg {width:12px;height:12px;}
+  .royal-rewards,.royal-friends {gap:7px;padding:8px;}
+  .royal-reward-icon,.royal-friends-icon {width:35px;height:35px;}
+  .royal-button {min-width:55px;padding:6px;font-size:10px;}
+  .royal-modes {gap:6px;}
+  .royal-mode {border-radius:17px;}
+  .royal-card-art {padding:4px 6px;}
+  .royal-hero-title {font-size:clamp(26px,8vw,38px);}
+}
+@media (prefers-reduced-motion:reduce) {
+  .royal-home button {transition:none;}
+}
