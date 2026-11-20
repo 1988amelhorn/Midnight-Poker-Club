@@ -1,4 +1,12 @@
-import { randomInt } from 'node:crypto';
+// Browser-compatible cryptographic shuffle for both practice and multiplayer.
+function randomInt(min: number, max: number): number {
+  const range = max - min;
+  if (!Number.isInteger(range) || range <= 0) throw new RangeError('Invalid random range');
+  const limit = Math.floor(0x100000000 / range) * range;
+  const sample = new Uint32Array(1);
+  do { globalThis.crypto.getRandomValues(sample); } while (sample[0] >= limit);
+  return min + (sample[0] % range);
+}
 import { calculateHandStrengthAndOdds, evaluateBestHand } from './pokerEvaluator.ts';
 import type {
   BotDifficulty,
