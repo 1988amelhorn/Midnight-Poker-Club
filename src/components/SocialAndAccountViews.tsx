@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react';
 import { apiFetch, makeIdempotencyKey } from '../lib/api.ts';
+import { getSupabaseClient } from '../lib/supabase.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import type {
   ChatMessageItem,
@@ -49,6 +50,8 @@ export const PlayerProfileView: React.FC<{
   const [avatarId, setAvatarId] = useState(user?.avatarId || 'ace-spade');
   const [bio, setBio] = useState(user?.bio || '');
   const [error, setError] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoNotice, setPhotoNotice] = useState<string | null>(null);
 
   if (!user) return null;
   const winRate =
@@ -65,6 +68,54 @@ export const PlayerProfileView: React.FC<{
       setEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save profile');
+    }
+  };
+
+  const uploadProfilePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Choose a photo from your camera roll.');
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      setError('Choose a photo smaller than 12 MB.');
+      return;
+    }
+    setUploadingPhoto(true);
+    setError(null);
+    setPhotoNotice(null);
+    try {
+      const supabase = await getSupabaseClient();
+      if (!supabase) throw new Error('Photo upload requires a connected account.');
+      const image = await createImageBitmap(file);
+      const scale = Math.min(1, 512 / Math.max(image.width, image.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not process this photo.');
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      image.close();
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(data => data ? resolve(data) : reject(new Error('Could not prepare this photo.')), 'image/webp', 0.82);
+      });
+      if (blob.type !== 'image/webp' || blob.size > 2 * 1024 * 1024) {
+        throw new Error('Photo format not supported. Try a JPG or PNG.');
+      }
+      const path = user.id + '/avatar-' + crypto.randomUUID() + '.webp';
+      const { error: storageError } = await supabase.storage.from('player-avatars')
+        .upload(path, blob, { contentType: 'image/webp', cacheControl: '3600', upsert: false });
+      if (storageError) throw new Error('Photo upload failed: ' + storageError.message);
+      const publicUrl = supabase.storage.from('player-avatars').getPublicUrl(path).data.publicUrl;
+      await updateProfile({ avatarId: publicUrl });
+      setAvatarId(publicUrl);
+      setPhotoNotice('Profile photo updated!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to upload photo.');
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -86,11 +137,25 @@ export const PlayerProfileView: React.FC<{
         </button>
       </div>
 
-      {error && <div className="rounded-2xl bg-rose-500/15 border border-rose-500/40 px-4 py-2 text-xs text-rose-300">{error}</div>}
+      {error && <div role="alert" className="rounded-2xl bg-rose-500/15 border border-rose-500/40 px-4 py-2 text-xs text-rose-300">{error}</div>}
+      {photoNotice && <p role="status" className="rounded-xl bg-emerald-500/15 border border-emerald-400/50 px-4 py-2 text-xs font-semibold text-emerald-200">{photoNotice}</p>}
 
       <div className="glass-bubbly rounded-[32px] p-5 sm:p-6 space-y-5">
         {editing ? (
           <form onSubmit={handleSave} className="space-y-4">
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-slate-950/50 p-3">
+              <PlayerAvatar avatarId={avatarId} username={user.username} size="lg" />
+              <div className="min-w-0 flex-1">
+                <label htmlFor="midnight-avatar-file" className="btn-glossy btn-glossy-gold inline-flex items-center justify-center cursor-pointer rounded-full px-4 py-2 text-xs font-bold text-slate-950">
+                  {uploadingPhoto ? 'Uploading…' : 'Choose a photo'}
+                </label>
+                <input type="file" id="midnight-avatar-file" accept="image/*"
+                  disabled={uploadingPhoto} onChange={(event) => void uploadProfilePhoto(event)}
+                  className="sr-only" />
+                <p className="mt-1.5 text-[11px] text-slate-400">Camera roll or photo library · cropped to fit your avatar</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400">Or choose a club avatar:</p>
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               {AVATAR_OPTIONS.map((av) => (
                 <button
@@ -116,7 +181,7 @@ export const PlayerProfileView: React.FC<{
               className="input-bubbly w-full rounded-2xl px-4 py-2.5 text-sm text-white"
               placeholder="Player bio..."
             />
-            <button type="submit" className="btn-glossy btn-glossy-green px-6 py-2.5 rounded-full text-slate-950 font-display font-extrabold text-xs">
+            <button type="submit" disabled={uploadingPhoto} className="btn-glossy btn-glossy-green px-6 py-2.5 rounded-full text-slate-950 font-display font-extrabold text-xs disabled:opacity-50">
               Save Changes
             </button>
           </form>
