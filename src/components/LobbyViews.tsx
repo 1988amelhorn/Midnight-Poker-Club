@@ -153,7 +153,7 @@ export const RoomBrowserView: React.FC<{
   onBack: () => void;
 }> = ({ gameType, onEnterRoom, onCreateRoom, onBack }) => {
   const { wallet, refreshWallet } = useAuth();
-  const { lobbyRooms, refreshLobby } = useGameSocket();
+  const { lobbyRooms, refreshLobby, multiplayerAvailable } = useGameSocket();
   const [selectedBuyin, setSelectedBuyin] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -162,9 +162,10 @@ export const RoomBrowserView: React.FC<{
     void refreshLobby();
   }, [refreshLobby]);
 
-  const rooms = lobbyRooms.filter((r) => r.gameType === gameType);
+  const rooms = multiplayerAvailable === true ? lobbyRooms.filter((r) => r.gameType === gameType) : [];
 
   const handleJoin = async (room: GameRoomSummary) => {
+    if (multiplayerAvailable !== true) return;
     setError(null);
     setJoiningId(room.id);
     try {
@@ -177,6 +178,9 @@ export const RoomBrowserView: React.FC<{
       onEnterRoom(res.room);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to join room');
+      // A table could close between browsing and joining. Remove stale rooms
+      // immediately instead of allowing repeated failures on the same card.
+      void refreshLobby();
     } finally {
       setJoiningId(null);
     }
@@ -200,14 +204,22 @@ export const RoomBrowserView: React.FC<{
         </div>
         <button
           type="button"
+          disabled={multiplayerAvailable !== true}
           onClick={onCreateRoom}
-          className="inline-flex items-center gap-1.5 rounded-full btn-glossy btn-glossy-purple px-3.5 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-display font-bold text-white whitespace-nowrap shrink-0"
+          className="inline-flex items-center gap-1.5 rounded-full btn-glossy btn-glossy-purple px-3.5 py-2 sm:px-5 sm:py-2.5 text-[11px] sm:text-xs font-display font-bold text-white whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" /> Create Table
         </button>
       </div>
 
-      {error && <div className="rounded-2xl bg-rose-500/15 border border-rose-500/40 px-4 py-2.5 text-xs text-rose-300">{error}</div>}
+      {multiplayerAvailable === false && (
+        <div role="status" className="rounded-2xl border border-amber-400/40 bg-amber-950/30 px-4 py-4 text-sm text-amber-100">
+          <strong className="block mb-1">Live tables temporarily unavailable</strong>
+          We’re connecting a reliable game server. No chips will be deducted. Check back when tables are ready.
+        </div>
+      )}
+      {multiplayerAvailable === null && <p role="status" className="text-sm text-slate-300">Checking live tables…</p>}
+      {error && <div role="alert" className="rounded-2xl bg-rose-500/15 border border-rose-500/40 px-4 py-2.5 text-xs text-rose-300">{error}</div>}
 
       <div className="space-y-3.5">
         {rooms.map((room) => {
