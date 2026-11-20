@@ -1453,7 +1453,7 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
   return { app, httpServer, dataStore, gameManager };
 }
 
-async function bootstrap() {
+export async function bootstrap() {
   const { app, httpServer } = createNeonPokerServer();
   const isProd = process.env.NODE_ENV === 'production';
 
