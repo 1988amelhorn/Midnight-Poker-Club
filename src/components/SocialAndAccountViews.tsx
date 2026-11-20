@@ -492,7 +492,7 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
           {searchResults.map((p) => (
             <div key={p.userId} className="flex items-center justify-between py-2 border-b border-slate-800/60 last:border-0">
               <div className="flex items-center gap-2.5">
-                <PlayerAvatar avatarId={p.avatarId} username={p.username} size="sm" />
+                <PlayerAvatar playerId={p.userId} avatarId={p.avatarId} username={p.username} size="sm" />
                 <div>
                   <p className="text-sm font-semibold text-white">{p.username}</p>
                   <p className="text-[11px] text-slate-400">Level {p.level}</p>
@@ -522,7 +522,7 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
           {incoming.map((req) => (
             <div key={req.id} className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <PlayerAvatar avatarId={req.senderAvatarId} username={req.senderUsername} size="sm" />
+                <PlayerAvatar playerId={req.senderId} avatarId={req.senderAvatarId} username={req.senderUsername} size="sm" />
                 <span className="text-sm font-semibold text-white">{req.senderUsername}</span>
               </div>
               <div className="flex gap-2">
@@ -549,7 +549,7 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
           friends.map((f) => (
             <div key={f.userId} className="flex items-center justify-between gap-2 py-2 border-b border-slate-800/60 last:border-0">
               <div className="flex items-center gap-2.5">
-                <PlayerAvatar avatarId={f.avatarId} username={f.username} size="sm" />
+                <PlayerAvatar playerId={f.userId} avatarId={f.avatarId} username={f.username} size="sm" />
                 <div>
                   <p className="text-sm font-semibold text-white">{f.username}</p>
                   <p className="text-[11px] text-slate-400">
@@ -882,7 +882,7 @@ export const LeaderboardsView: React.FC<{ onBack: () => void }> = ({ onBack }) =
                   <span className={`w-7 text-center font-mono text-sm font-bold ${r.rank <= 3 ? 'text-amber-300' : 'text-slate-500'}`}>
                     #{r.rank}
                   </span>
-                  <PlayerAvatar avatarId={r.avatarId} username={r.username} size="sm" />
+                  <PlayerAvatar playerId={r.userId} avatarId={r.avatarId} username={r.username} size="sm" />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-white break-words">{r.username}</p>
                     <p className="text-[11px] text-slate-400 break-words">Level {r.level} · {r.secondaryLabel}</p>
