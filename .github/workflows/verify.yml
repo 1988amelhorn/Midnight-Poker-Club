@@ -26,3 +26,29 @@ jobs:
         run: npm test
       - name: Production frontend build
         run: npm run build
+      - name: Smoke test Enzonic index.js entrypoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT=38129 node index.js >/tmp/midnight-enzonic-startup.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ok=0
+          for attempt in {1..25}; do
+            if curl --fail --silent http://127.0.0.1:38129/api/health > /tmp/midnight-enzonic-health.json; then
+              ok=1
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo 'Node launcher exited unexpectedly:'
+              cat /tmp/midnight-enzonic-startup.log
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ "$ok" != 1 ]]; then
+            echo 'Node launcher never became healthy:'
+            cat /tmp/midnight-enzonic-startup.log
+            exit 1
+          fi
+          node -e "const h = require('/tmp/midnight-enzonic-health.json'); if (h.multiplayerAvailable !== true) process.exit(1)"
