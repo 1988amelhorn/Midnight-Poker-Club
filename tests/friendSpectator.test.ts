@@ -61,22 +61,19 @@ describe('accepted-friend read-only spectating', () => {
       expect(friendJoin.json.room.playerCount).toBe(3); // host, bot, friend
       await req(`/api/rooms/${roomId}/leave`, 'POST', guest.token);
       await req(`/api/rooms/${roomId}/leave`, 'POST', host.token);
-      expect((await req(url, 'GET', guest.token)).status).toBe(403);
+      expect((await req(url, 'GET', guest.token)).status).toBe(404);
 
-      // A friends table remains reopenable after the last human leaves.
+      // The table is closed after the last human leaves, not shown as a
+      // misleading empty room in friends' lists.
       const friendsTables = await req('/api/friends/tables', 'GET', guest.token);
       expect(friendsTables.status).toBe(200);
       const hostListing = friendsTables.json.friends.find((x: any) => x.userId === host.user.id);
-      expect(hostListing.currentRoomId).toBe(roomId);
-      expect(hostListing.canJoin).toBe(true);
+      expect(hostListing.currentRoomId).toBeNull();
+      expect(hostListing.canJoin).toBe(false);
       const hostReturn = await req('/api/rooms/join', 'POST', host.token, {
         roomIdOrCode: roomId, buyinAmount: 500,
       });
-      expect(hostReturn.status).toBe(200);
-      const guestReturn = await req('/api/rooms/join', 'POST', guest.token, {
-        roomIdOrCode: roomId, friendId: host.user.id, buyinAmount: 500,
-      });
-      expect(guestReturn.status).toBe(200);
+      expect(hostReturn.status).toBe(400);
     } finally {
       await new Promise<void>((resolve, reject) => httpServer.close(error => error ? reject(error) : resolve()));
     }
