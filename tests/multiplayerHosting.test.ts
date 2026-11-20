@@ -32,6 +32,23 @@ async function startServer(statelessRuntime: boolean) {
 }
 
 describe('hosted multiplayer reliability', () => {
+  it('retains stable public table IDs after a game server restart', () => {
+    const first = createNeonPokerServer();
+    const restarted = createNeonPokerServer();
+    try {
+      const house = ['MIDN50', 'CYBR20', 'VIP21X'];
+      for (const code of house) {
+        const original = first.gameManager.roomCodeToId.get(code);
+        const replacement = restarted.gameManager.roomCodeToId.get(code);
+        expect(original).toBeTruthy();
+        expect(replacement).toBe(original);
+      }
+    } finally {
+      first.gameManager.cleanup();
+      restarted.gameManager.cleanup();
+    }
+  });
+
   it('never advertises Vercel serverless rooms that cannot be reliably joined', async () => {
     const server = await startServer(true);
     try {
