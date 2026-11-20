@@ -28,7 +28,7 @@ export interface AuthedRequest extends Request {
   authUser?: StoredUserRecord;
 }
 
-export function createNeonPokerServer(options?: GameManagerOptions) {
+export function createNeonPokerServer(options?: GameManagerOptions & { statelessRuntime?: boolean }) {
   const app = express();
   // Allow only configured browser frontend origins when hosting the API
   // separately. Same-origin requests work without any configuration.
@@ -56,6 +56,10 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
 
   const dataStore = new ServerDataStore();
   const gameManager = new GameManager(dataStore, options);
+  // Vercel functions can run simultaneously on independent instances. Tables
+  // and game engines currently live in this process, so do not advertise
+  // fake playable rooms from the serverless compatibility API.
+  const statelessGameRuntime = options?.statelessRuntime === true;
 
   // Simple sliding-window API rate limiter
   const rateBuckets = new Map<string, { count: number; resetAt: number }>();
@@ -181,8 +185,10 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
       supabaseAuthEnabled: isSupabaseAuthEnabled,
       mode: isSupabaseConfigured ? 'supabase' : isSupabaseAuthEnabled ? 'supabase-auth' : 'local-server-authoritative',
       uptimeSeconds: Math.floor(process.uptime()),
-      activeRooms: gameManager.rooms.size,
-      activeTournaments: gameManager.tournaments.size,
+      activeRooms: statelessGameRuntime ? 0 : gameManager.rooms.size,
+      activeTournaments: statelessGameRuntime ? 0 : gameManager.tournaments.size,
+      multiplayerAvailable: !statelessGameRuntime,
+      multiplayerHosting: statelessGameRuntime ? 'stateless-function' : 'single-process',
     });
   });
 
@@ -534,6 +540,7 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
   });
 
   app.post('/api/clubs/presets/:id/reopen', requireAuth, rateLimit(12, 60_000), async (req: AuthedRequest, res) => {
+    if (statelessGameRuntime) return res.status(503).json({ error: 'Live tables are temporarily unavailable. Your chips were not charged.', code: 'GAME_SERVER_REQUIRED' });
     const db = friendsDb(req);
     if (!db) return res.status(503).json({ error: 'Sign in through Supabase to reopen a saved table' });
     const { data: preset, error } = await db.from('club_table_presets')
@@ -572,6 +579,26 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
     }
     return res.status(201).json({ room: joined.room, reopened: true });
   });
+
+  // Serverless functions cannot keep game state shared between HTTP calls.
+  // A successful JOIN against a different instance would be a phantom seat.
+  // Reject it *before* any buy-in or game action and show no false tables.
+  if (statelessGameRuntime) {
+    const unavailable = { error: 'Live multiplayer is temporarily unavailable while the game server is being connected. Your chips have not been charged.', code: 'GAME_SERVER_REQUIRED' };
+    app.use('/api/rooms', (req, res, next) => {
+      if (req.method === 'GET' && (req.path === '/' || req.path === '')) {
+        return res.json({ rooms: [], activeRoom: null, multiplayerAvailable: false });
+      }
+      return res.status(503).json(unavailable);
+    });
+    app.use('/api/tournaments', (req, res, next) => {
+      if (req.method === 'GET' && (req.path === '/' || req.path === '')) {
+        return res.json({ tournaments: [], multiplayerAvailable: false });
+      }
+      return res.status(503).json(unavailable);
+    });
+    app.post('/api/clubs/presets/:id/reopen', (_req, res) => res.status(503).json(unavailable));
+  }
 
   // ROOMS (Public & Private Poker / Blackjack)
   app.get('/api/rooms', requireAuth, (req: AuthedRequest, res) => {
@@ -1334,6 +1361,10 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
   });
 
   wss.on('connection', (ws, req) => {
+    if (statelessGameRuntime) {
+      ws.close(1013, 'Live multiplayer temporarily unavailable');
+      return;
+    }
     const url = new URL(req.url || '/ws', 'http://localhost');
     const token = url.searchParams.get('token') || '';
     const pendingFrames: string[] = [];

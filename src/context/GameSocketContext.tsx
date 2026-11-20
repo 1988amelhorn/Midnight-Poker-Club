@@ -21,6 +21,7 @@ interface GameSocketContextValue {
   roomChat: ChatMessageItem[];
   lobbyRooms: GameRoomSummary[];
   lobbyTournaments: TournamentSummary[];
+  multiplayerAvailable: boolean | null;
   actionError: string | null;
   friendRequestRefreshVersion: number;
   clearActionError: () => void;
@@ -50,20 +51,43 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [roomChat, setRoomChat] = useState<ChatMessageItem[]>([]);
   const [lobbyRooms, setLobbyRooms] = useState<GameRoomSummary[]>([]);
   const [lobbyTournaments, setLobbyTournaments] = useState<TournamentSummary[]>([]);
+  const [multiplayerAvailable, setMultiplayerAvailable] = useState<boolean | null>(null);
+  const multiplayerAvailableRef = useRef<boolean | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [friendRequestRefreshVersion, setFriendRequestRefreshVersion] = useState(0);
 
   const refreshLobby = useCallback(async () => {
-    if (!token) return;
+    if (!token) {
+      setLobbyRooms([]);
+      setLobbyTournaments([]);
+      multiplayerAvailableRef.current = null;
+      setMultiplayerAvailable(null);
+      return;
+    }
     try {
-      const [rData, tData] = await Promise.all([
-        apiFetch<{ rooms: GameRoomSummary[] }>('/api/rooms'),
-        apiFetch<{ tournaments: TournamentSummary[] }>('/api/tournaments'),
-      ]);
+      const rData = await apiFetch<{ rooms: GameRoomSummary[]; multiplayerAvailable?: boolean }>('/api/rooms');
+      if (rData.multiplayerAvailable === false) {
+        multiplayerAvailableRef.current = false;
+        setMultiplayerAvailable(false);
+        setLobbyRooms([]);
+        setLobbyTournaments([]);
+        return;
+      }
       setLobbyRooms(rData.rooms || []);
-      setLobbyTournaments(tData.tournaments || []);
+      multiplayerAvailableRef.current = true;
+      setMultiplayerAvailable(true);
+      try {
+        const tData = await apiFetch<{ tournaments: TournamentSummary[] }>('/api/tournaments');
+        setLobbyTournaments(tData.tournaments || []);
+      } catch {
+        setLobbyTournaments([]);
+      }
     } catch {
-      // ignore transient error
+      // Never continue showing a room ID from a stale/unreachable server.
+      setLobbyRooms([]);
+      setLobbyTournaments([]);
+      multiplayerAvailableRef.current = false;
+      setMultiplayerAvailable(false);
     }
   }, [token]);
 
@@ -87,12 +111,13 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   useEffect(() => {
-    if (!token) {
+    if (!token || multiplayerAvailable === false) {
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
       setWsConnected(false);
+      setReconnecting(false);
       return;
     }
 
@@ -151,8 +176,12 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           } else if (msg.type === 'tournament:state' && msg.tournament) {
             setCurrentTournament(msg.tournament);
           } else if (msg.type === 'lobby:update') {
-            if (msg.rooms) setLobbyRooms(msg.rooms);
-            if (msg.tournaments) setLobbyTournaments(msg.tournaments);
+            // HTTP availability decides whether serverless room IDs are valid.
+            // A socket broadcast must never resurrect phantom rooms.
+            if (multiplayerAvailableRef.current !== false) {
+              if (msg.rooms) setLobbyRooms(msg.rooms);
+              if (msg.tournaments) setLobbyTournaments(msg.tournaments);
+            }
           } else if (msg.type === 'wallet:refresh') {
             void refreshWallet();
           } else if (msg.type === 'notifications:refresh') {
@@ -217,7 +246,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         wsRef.current = null;
       }
     };
-  }, [token, refreshLobby, refreshWallet, refreshSession, loadRoomSnapshot, loadTournamentSnapshot]);
+  }, [token, multiplayerAvailable, refreshLobby, refreshWallet, refreshSession, loadRoomSnapshot, loadTournamentSnapshot]);
 
   const subscribeRoom = useCallback((roomId: string | null) => {
     activeRoomIdRef.current = roomId;
@@ -288,6 +317,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         roomChat,
         lobbyRooms,
         lobbyTournaments,
+        multiplayerAvailable,
         actionError,
         friendRequestRefreshVersion,
         clearActionError: () => setActionError(null),

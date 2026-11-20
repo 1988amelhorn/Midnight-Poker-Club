@@ -1,0 +1,28 @@
+# Free single-process Node backend for real-time poker and blackjack.
+# The Vercel frontend must set VITE_API_BASE_URL to this service's HTTPS origin.
+# On Render Free, idle services sleep and game state resets on restart.
+services:
+  - type: web
+    name: midnight-poker-club-game-server
+    runtime: node
+    plan: free
+    buildCommand: npm install --no-audit --no-fund && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22.16.0"
+      - key: FRONTEND_ORIGIN
+        value: https://midnight-poker-club.vercel.app
+      - key: APP_URL
+        value: https://midnight-poker-club.vercel.app
+      - key: SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
