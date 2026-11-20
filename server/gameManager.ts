@@ -205,8 +205,16 @@ export class GameManager {
       },
     ];
 
+    // House tables have stable IDs across a single-server restart. Only
+    // these official templates are fixed: player-created private tables are
+    // still transient until persistent multiplayer state is implemented.
+    const houseIds: Record<string, string> = {
+      MIDN50: 'c4a4e50a-5c0d-4f8e-b4b2-264d6db7a501',
+      CYBR20: 'c4a4e50a-5c0d-4f8e-b4b2-264d6db7a502',
+      VIP21X: 'c4a4e50a-5c0d-4f8e-b4b2-264d6db7a503',
+    };
     for (const tpl of publicTemplates) {
-      const id = randomUUID();
+      const id = houseIds[tpl.code];
       const room: ManagedRoom = {
         id,
         code: tpl.code,
