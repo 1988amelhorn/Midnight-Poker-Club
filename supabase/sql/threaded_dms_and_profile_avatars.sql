@@ -48,3 +48,8 @@ with check (
   and (storage.foldername(name))[1] = (select auth.uid()::text)
   and name ~ '^[0-9a-f-]{36}/avatar-[0-9a-f-]{36}\.webp$'
 );
+
+-- PostgREST needs an UPDATE grant as well as profiles_update_owner RLS.
+-- Only editable identity fields are writable by logged-in players; do NOT grant
+-- UPDATE for chips, winnings, stats, or other server-controlled account fields.
+grant update (avatar_url, username) on table public.profiles to authenticated;
