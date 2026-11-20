@@ -311,7 +311,7 @@ export function createNeonPokerServer(options?: GameManagerOptions) {
           let valid = false;
           try {
             const photoUrl = new URL(patch.avatarId);
-            const project = new URL(db.supabaseUrl);
+            const project = new URL(publicSupabaseConfig.supabaseUrl);
             const expectedPrefix = '/storage/v1/object/public/player-avatars/' + uid + '/';
             valid = photoUrl.protocol === 'https:' && photoUrl.origin === project.origin
               && photoUrl.pathname.startsWith(expectedPrefix)
