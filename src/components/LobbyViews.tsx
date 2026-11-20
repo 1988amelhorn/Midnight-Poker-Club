@@ -63,174 +63,85 @@ export const MainLobbyView: React.FC<{
   const tournCount = lobbyTournaments.filter((t) => t.status !== 'completed').length;
 
   return (
-    <div className="casino-screen max-w-6xl mx-auto p-4 sm:p-6 space-y-4">
-      {/* Resume Active Table Banner */}
+    <div className="royal-home casino-screen mx-auto w-full max-w-5xl px-3 pb-6 pt-3 sm:px-6 sm:pt-5">
       {activeRoom && (
-        <div className="rounded-[26px] border-2 border-emerald-400/55 bg-gradient-to-r from-emerald-950/60 via-[#0d1d33]/90 to-cyan-950/50 backdrop-blur-md px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_28px_rgba(16,185,129,0.2)]">
-          <div>
-            <p className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Active Seat Found</p>
-            <p className="text-sm font-display font-bold text-white">
-              You are seated in {activeRoom.name} ({activeRoom.code})
-            </p>
+        <div className="royal-resume">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-wider font-bold text-emerald-300">Active table</p>
+            <p className="truncate font-display font-bold text-white">{activeRoom.name} · {activeRoom.code}</p>
           </div>
-          <button
-            type="button"
+          <button type="button"
             onClick={() => onNavigate(activeRoom.gameType === 'blackjack' ? 'live_blackjack' : 'live_poker', activeRoom.id)}
-            className="inline-flex items-center justify-center gap-2 rounded-full btn-glossy btn-glossy-green px-6 py-2.5 text-xs font-display font-extrabold text-slate-950"
-          >
-            <Play className="w-4 h-4 fill-current" /> Resume Table
-          </button>
+            className="royal-button royal-button-green shrink-0"><Play className="w-4 h-4" /> Resume</button>
         </div>
       )}
 
-      {/* Verified owner shortcut is intentionally ABOVE the hero: on mobile it
-          must not be hidden below the long lobby tiles and daily bonuses. */}
       {isOwner && (
-        <button type="button" onClick={() => onNavigate('owner')}
-          className="neon-casino-panel glass-bubbly rounded-[25px] p-3.5 sm:p-4 w-full flex items-center justify-between gap-3 text-left border-2 border-amber-400/60 shadow-[0_0_22px_rgba(251,191,36,0.18)]">
-          <span className="flex items-center gap-3">
-            <Shield className="w-7 h-7 text-amber-300 shrink-0"/>
-            <span>
-              <span className="block font-display font-extrabold text-white text-sm">Owner Dashboard</span>
-              <span className="block text-xs text-slate-300">See signups, games &amp; online players</span>
-            </span>
-          </span>
-          <span className="btn-glossy btn-glossy-gold rounded-full px-4 py-2 text-slate-950 font-bold text-xs">Open</span>
+        <button type="button" className="royal-owner" onClick={() => onNavigate('owner')}>
+          <Shield className="h-5 w-5 text-amber-300" />
+          <span className="font-bold">Owner Dashboard</span>
+          <span className="ml-auto text-amber-200 text-xs">Open →</span>
         </button>
       )}
 
-      {/* Midnight Skyline Hero Banner */}
-      <div className="neon-casino-panel relative rounded-[26px] overflow-hidden border border-cyan-400/35 shadow-[0_0_24px_rgba(34,211,238,0.12)] min-h-[160px] sm:min-h-[210px] flex flex-col items-center justify-center text-center p-6">
-        <img
-          src="/src/assets/images/neon_hero_skyline_1795020140555.jpg"
-          alt="Midnight Poker Club Skyline"
-          referrerPolicy="no-referrer"
-          className="absolute inset-0 w-full h-full object-cover opacity-65"
-        />
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-20 rounded-full bg-cyan-400/15 blur-2xl" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#060914] via-[#060914]/45 to-[#060914]/35" />
+      <section className="royal-play-section" aria-label="Featured game">
+        <h1 className="royal-callout"><span>Ready for the next hand?</span></h1>
+        <button type="button" className="royal-play-card" onClick={() => onNavigate('holdem_browser')} aria-label="Play Texas Hold'em">
+          <span className="royal-table-rail" aria-hidden="true" />
+          <span className="royal-table-felt" aria-hidden="true" />
+          <span className="royal-card-art royal-card-ace" aria-hidden="true"><span>A</span><b>♠</b></span>
+          <span className="royal-card-art royal-card-king" aria-hidden="true"><span>K</span><b>♥</b></span>
+          <span className="royal-chip-stack royal-chip-left" aria-hidden="true"><i /><i /><i /></span>
+          <span className="royal-chip-stack royal-chip-right" aria-hidden="true"><i /><i /><i /></span>
+          <span className="royal-hero-title">PLAY <strong>TEXAS HOLD’EM</strong></span>
+          <span className="royal-play-button">PLAY NOW <Play className="w-5 h-5 fill-current" /></span>
+        </button>
+      </section>
 
-        <div className="relative z-10 space-y-2">
-          <h1 className="text-4xl sm:text-5xl font-display font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-sky-400 to-purple-400 bg-clip-text text-transparent drop-shadow-[0_0_26px_rgba(34,211,238,0.65)]">
-            MIDNIGHT
-          </h1>
-          <p className="text-base sm:text-lg font-display font-bold tracking-[0.28em] text-amber-300 uppercase drop-shadow-[0_0_12px_rgba(250,204,21,0.5)]">
-            POKER CLUB
-          </p>
-          <p className="text-xs sm:text-sm font-display font-semibold text-cyan-100/95 tracking-wide">
-            Where Legends Go All In.
-          </p>
-          <div className="flex items-center justify-center gap-4 text-2xl pt-1" aria-hidden="true">
-            <span className="text-sky-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.9)]">♠</span>
-            <span className="text-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.9)]">♥</span>
-            <span className="text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]">♣</span>
-            <span className="text-fuchsia-400 drop-shadow-[0_0_10px_rgba(232,121,249,0.9)]">♦</span>
-          </div>
+      <section className="royal-modes" aria-label="More game modes">
+        <button type="button" onClick={() => onNavigate('blackjack_browser')} className="royal-mode royal-blackjack">
+          <span className="royal-mode-illustration royal-bj-cards" aria-hidden="true"><i>J♠</i><i>A♥</i></span>
+          <span className="royal-mode-name">BLACKJACK <span>›</span></span>
+        </button>
+        <button type="button" onClick={() => onNavigate('create_private')} className="royal-mode royal-private">
+          <span className="royal-mode-illustration" aria-hidden="true"><Users className="w-14 h-14" /><Lock className="royal-lock w-6 h-6" /></span>
+          <span className="royal-mode-name">PRIVATE<br />TABLE <span>›</span></span>
+        </button>
+        <button type="button" onClick={() => onNavigate('tournament_browser')} className="royal-mode royal-tournament">
+          <span className="royal-mode-illustration" aria-hidden="true"><Trophy className="w-16 h-16" /></span>
+          <span className="royal-mode-name">TOURNAMENTS <span>›</span></span>
+        </button>
+      </section>
+
+      <section className="royal-rewards" aria-label="Daily rewards">
+        <Gift className="royal-reward-icon" aria-hidden="true" />
+        <div className="royal-reward-copy">
+          <h2>DAILY REWARDS</h2>
+          <p>2,000 chips · Prize Wheel</p>
         </div>
-      </div>
-
-      {/* Primary 2x2 Neon Bubbly Mode Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <button
-          type="button"
-          onClick={() => onNavigate('holdem_browser')}
-          className="group relative rounded-2xl border border-purple-400/40 bg-gradient-to-b from-purple-900/65 via-[#140e31]/90 to-[#0a0f22] p-3.5 sm:p-5 text-center shadow-sm hover:border-purple-300 transition-colors"
-        >
-          <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto mb-2 rounded-xl bg-purple-500/20 border border-purple-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(168,85,247,0.4)]">
-            <Spade className="w-6 h-6 sm:w-8 sm:h-8 text-purple-200" />
-          </div>
-          <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">TEXAS HOLD&apos;EM</h2>
-          <p className="text-xs text-purple-200/85 mt-0.5">Play Poker · {holdemCount} Tables</p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('blackjack_browser')}
-          className="group relative rounded-2xl border border-rose-400/40 bg-gradient-to-b from-rose-900/65 via-[#2a0f20]/90 to-[#0a0f22] p-3.5 sm:p-5 text-center shadow-sm hover:border-rose-300 transition-colors"
-        >
-          <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto mb-2 rounded-xl bg-rose-500/20 border border-rose-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(244,63,94,0.4)]">
-            <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-rose-200" />
-          </div>
-          <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">BLACKJACK</h2>
-          <p className="text-xs text-rose-200/85 mt-0.5">Play 21 · {bjCount} Tables</p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('create_private')}
-          className="group relative rounded-2xl border border-sky-400/40 bg-gradient-to-b from-sky-900/65 via-[#0d1f3a]/90 to-[#0a0f22] p-3.5 sm:p-5 text-center shadow-sm hover:border-sky-300 transition-colors"
-        >
-          <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto mb-2 rounded-xl bg-sky-500/20 border border-sky-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(56,189,248,0.4)]">
-            <Users className="w-6 h-6 sm:w-8 sm:h-8 text-sky-200" />
-          </div>
-          <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">PRIVATE TABLE</h2>
-          <p className="text-xs text-sky-200/85 mt-0.5">Friends &amp; Bots with Code</p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('tournament_browser')}
-          className="group relative rounded-2xl border border-amber-400/40 bg-gradient-to-b from-amber-900/60 via-[#291b0c]/90 to-[#0a0f22] p-3.5 sm:p-5 text-center shadow-sm hover:border-amber-300 transition-colors"
-        >
-          <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto mb-2 rounded-xl bg-amber-500/20 border border-amber-400/45 flex items-center justify-center shadow-[0_0_18px_rgba(245,158,11,0.4)]">
-            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-amber-200" />
-          </div>
-          <h2 className="text-sm sm:text-base font-display font-extrabold text-white tracking-wide">TOURNAMENT</h2>
-          <p className="text-xs text-amber-200/85 mt-0.5">Create · Join by Code · {tournCount} Live</p>
-        </button>
-      </div>
-
-      {/* Compact club dashboard: features remain one tap away, without oversized cards. */}
-      <section className="space-y-3" aria-label="Club dashboard">
-        <div className="grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => onNavigate('daily_bonus')}
-            className="flex items-center gap-2.5 rounded-2xl border border-amber-400/25 bg-[#11172e] p-3 text-left hover:border-amber-400/55 transition-colors min-w-0">
-            <span className="grid place-items-center w-9 h-9 shrink-0 rounded-xl bg-amber-400/10 text-amber-300"><Gift className="w-5 h-5" /></span>
-            <span className="min-w-0">
-              <span className="block text-xs sm:text-sm font-bold text-white">Daily Bonus</span>
-              <span className="block text-[11px] text-amber-200">Claim 2,000 chips</span>
-            </span>
-          </button>
-          <button type="button" onClick={() => onNavigate('daily_wheel')}
-            className="flex items-center gap-2.5 rounded-2xl border border-fuchsia-400/25 bg-[#11172e] p-3 text-left hover:border-fuchsia-400/55 transition-colors min-w-0">
-            <span className="grid place-items-center w-9 h-9 shrink-0 rounded-xl bg-fuchsia-400/10 text-fuchsia-300"><Trophy className="w-5 h-5" /></span>
-            <span className="min-w-0">
-              <span className="block text-xs sm:text-sm font-bold text-white">Prize Wheel</span>
-              <span className="block text-[11px] text-fuchsia-200">Free daily spin</span>
-            </span>
-          </button>
-        </div>
-        <div className="rounded-2xl border border-slate-700/60 bg-[#0d1529]/90 px-3.5 py-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Coins className="w-5 h-5 text-amber-300 shrink-0" />
-            <span className="text-xs text-slate-300">Wallet</span>
-            <span className="font-mono font-bold text-sm text-amber-200 tabular-nums">{(wallet?.chipBalance ?? 0).toLocaleString()}</span>
-          </div>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => onNavigate('wallet')}
-              className="rounded-full border border-slate-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">Wallet</button>
-            <button type="button" onClick={() => onNavigate('leaderboards')}
-              className="rounded-full border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-950/50">
-              Rankings
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <p className="text-[11px] text-slate-500">{stats?.pokerHandsWon ?? 0} Hold’em wins · {stats?.blackjackHandsWon ?? 0} Blackjack wins</p>
-          <button type="button" onClick={() => onNavigate('friends')}
-            className="inline-flex items-center gap-2 text-xs font-semibold text-cyan-200 hover:text-white">
-            <Users className="w-4 h-4" /> Friends
-            {pendingFriendRequests > 0 && <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-extrabold text-white">{pendingFriendRequests > 99 ? '99+' : pendingFriendRequests} new</span>}
-          </button>
+        <div className="royal-reward-buttons">
+          <button type="button" className="royal-button royal-button-gold" onClick={() => onNavigate('daily_bonus')}>BONUS</button>
+          <button type="button" className="royal-button royal-button-purple" onClick={() => onNavigate('daily_wheel')}>SPIN</button>
         </div>
       </section>
 
-      {/* Browse tables in Games rather than duplicating the full table list on Home. */}
-      <button type="button" onClick={() => onNavigate('holdem_browser')}
-        className="w-full rounded-2xl border border-slate-700/55 bg-[#0d1529]/80 px-4 py-3 flex items-center justify-between gap-3 text-left hover:border-cyan-400/50 transition-colors">
-        <span className="inline-flex items-center gap-2.5 text-sm font-semibold text-white"><Spade className="w-4 h-4 text-cyan-300" /> Browse Public Tables</span>
-        <span className="text-xs text-cyan-300">View Games →</span>
+      <button type="button" className="royal-friends" onClick={() => onNavigate('friends')}>
+        <Users className="royal-friends-icon" aria-hidden="true" />
+        <span className="royal-friends-copy">
+          <strong>FRIENDS &amp; CLUB {pendingFriendRequests > 0 && <em>{pendingFriendRequests} new</em>}</strong>
+          <small>Join friends · Send virtual chips</small>
+        </span>
+        <span className="royal-button royal-button-cyan">OPEN <span>›</span></span>
       </button>
+
+      <button type="button" className="royal-ranking" onClick={() => onNavigate('leaderboards')}>
+        <Trophy className="h-6 w-6 text-amber-300" aria-hidden="true" />
+        <span>{(stats?.pokerHandsWon ?? 0) + (stats?.blackjackHandsWon ?? 0)} Wins</span>
+        <span className="royal-ranking-divider">·</span>
+        <span>Rankings</span>
+        <span aria-hidden="true">›</span>
+      </button>
+      <p className="royal-disclaimer">Virtual chips only · No monetary value or real-money wagering</p>
     </div>
   );
 };

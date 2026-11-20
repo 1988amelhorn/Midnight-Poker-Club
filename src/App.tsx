@@ -327,19 +327,20 @@ const ClubShell: React.FC = () => {
     screen === 'tournament_detail';
 
   return (
-    <div className="min-h-[100dvh] w-full overflow-x-hidden flex flex-col bg-[#060911] text-slate-100">
+    <div className="royal-app min-h-[100dvh] w-full overflow-x-hidden flex flex-col bg-[#0b0308] text-slate-100">
       {/* Persistent Top Lobby Header (matches Reference Image 1 + Desktop 1440px) */}
-      <header className="sticky top-0 z-30 border-b border-sky-400/20 bg-[#080d1e]/92 backdrop-blur-xl px-3 sm:px-6 py-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.45)]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+      <header className="royal-header sticky top-0 z-30 px-3 sm:px-6 py-2.5">
+        <div className="royal-header-layout max-w-7xl mx-auto relative flex items-center justify-between gap-2">
           {/* Left: Player Pill & Brand */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="royal-header-user flex items-center gap-2 min-w-0">
             <button
               type="button"
               onClick={() => setScreen('profile')}
-              className="flex items-center gap-2.5 text-left min-w-0 group"
+              className="royal-profile-button flex items-center gap-1.5 text-left min-w-0 group"
             >
               <PlayerAvatar avatarId={user.avatarId} username={user.username} size="sm" />
-              <div className="min-w-0">
+              <span className="royal-level-mobile">Lv.{user.level}</span>
+              <div className="royal-player-details min-w-0">
                 <p className="text-xs sm:text-sm font-display font-bold text-white truncate group-hover:text-cyan-300 transition">
                   {user.username}
                 </p>
@@ -347,19 +348,15 @@ const ClubShell: React.FC = () => {
               </div>
             </button>
 
-            <span className="hidden lg:inline-block h-5 w-px bg-slate-800 mx-1" />
-            <button
-              type="button"
-              onClick={() => setScreen('lobby')}
-              className="hidden lg:inline-flex items-center gap-1.5 font-display font-extrabold text-sm tracking-wide bg-gradient-to-r from-cyan-300 via-sky-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap"
-              title="Midnight Poker Club — Where Legends Go All In."
-            >
-              MIDNIGHT <span className="text-amber-300">POKER CLUB</span>
-            </button>
           </div>
 
+          {/* The exact custom emblem is shared by the authenticated header and login. */}
+          <button type="button" className="royal-header-brand" onClick={() => setScreen('lobby')} aria-label="Midnight Poker Club home">
+            <img src="/midnight-custom-logo.webp" alt="Midnight Poker Club" />
+          </button>
+
           {/* Center: Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1.5" aria-label="Main navigation">
+          <nav className="royal-desktop-nav hidden md:flex items-center gap-1.5" aria-label="Main navigation">
             {navItems.map((item) => {
               const active =
                 screen === item.id ||
@@ -398,7 +395,7 @@ const ClubShell: React.FC = () => {
           </nav>
 
           {/* Right: Wallet Balance + Bonus Refill + Install */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="royal-top-actions flex items-center gap-1 shrink-0">
             {reconnecting && (
               <span
                 title="Reconnecting live table socket..."
@@ -411,7 +408,7 @@ const ClubShell: React.FC = () => {
 
             <PWAInstallButton compact />
 
-            <div className="inline-flex items-center rounded-full border-2 border-amber-400/55 bg-slate-950/90 overflow-hidden shadow-[0_0_16px_rgba(250,204,21,0.2)]">
+            <div className="royal-chip-pill inline-flex items-center rounded-full overflow-hidden">
               <button
                 type="button"
                 onClick={() => setScreen('wallet')}
@@ -424,7 +421,7 @@ const ClubShell: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setScreen('daily_bonus')}
-                className="btn-glossy btn-glossy-green px-2.5 py-1.5 text-slate-950 flex items-center justify-center"
+                className="btn-glossy btn-glossy-gold px-2.5 py-1.5 text-slate-950 flex items-center justify-center"
                 title="Daily 2,000-Chip Bonus"
               >
                 <Plus className="w-4 h-4 stroke-[2.75]" />
@@ -435,7 +432,7 @@ const ClubShell: React.FC = () => {
       </header>
 
       {/* Main Content Workspace */}
-      <main className="flex-1 pb-20 md:pb-8">
+      <main className="flex-1 pb-24 md:pb-8">
         {screen === 'lobby' && <MainLobbyView onNavigate={handleNavigate} pendingFriendRequests={pendingFriendRequests} isOwner={isOwner} />}
 
         {screen === 'holdem_browser' && (
@@ -576,15 +573,14 @@ const ClubShell: React.FC = () => {
         Midnight Poker Club · Where Legends Go All In. · Virtual chips for social entertainment only · No monetary value or real-money wagering
       </footer>
 
-      {/* Mobile Bottom Tab Bar (Home, Games, Tournament, Friends, Inbox, Profile) */}
+      {/* Mobile navigation follows the five-tab poker lobby reference. */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-sky-400/20 bg-[#080d1e]/95 backdrop-blur-xl px-2 py-1.5 grid grid-cols-6 gap-0.5 shadow-[0_-8px_24px_rgba(0,0,0,0.6)]"
+        className="royal-mobile-nav md:hidden fixed bottom-0 left-0 right-0 z-30 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] grid grid-cols-5 gap-1"
       >
         {[
           { id: 'lobby' as AppScreen, label: 'Home', icon: Home, active: screen === 'lobby' },
-          { id: 'holdem_browser' as AppScreen, label: 'Games', icon: Spade, active: isGamesActive },
-          { id: 'tournament_browser' as AppScreen, label: 'Tournament', icon: Trophy, active: isEventsActive },
+          { id: 'holdem_browser' as AppScreen, label: 'Games', icon: Spade, active: isGamesActive || isEventsActive },
           { id: 'friends' as AppScreen, label: 'Friends', icon: Users, active: screen === 'friends' },
           { id: 'inbox' as AppScreen, label: 'Inbox', icon: Mail, active: screen === 'inbox' },
           { id: 'profile' as AppScreen, label: 'Profile', icon: User, active: screen === 'profile' || screen === 'settings' || screen === 'wallet' },
@@ -593,9 +589,9 @@ const ClubShell: React.FC = () => {
             key={tab.id}
             type="button"
             onClick={() => setScreen(tab.id)}
-            className={`flex flex-col items-center justify-center py-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold transition min-h-[44px] ${
+            className={`royal-mobile-tab flex flex-col items-center justify-center py-1.5 rounded-2xl text-[11px] sm:text-[12px] font-semibold transition min-h-[52px] ${
               tab.active
-                ? 'btn-glossy btn-glossy-blue text-white shadow-[0_0_16px_rgba(56,189,248,0.45)]'
+                ? 'royal-mobile-tab-active text-white'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
