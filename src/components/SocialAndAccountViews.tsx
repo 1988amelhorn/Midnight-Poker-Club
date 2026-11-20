@@ -558,11 +558,14 @@ export const FriendsView: React.FC<{ onBack: () => void; onRequestsChanged?: () 
 
 // 21. INBOX & NOTIFICATIONS
 export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string) => void }> = ({ onBack, onJoinCode }) => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [directMessages, setDirectMessages] = useState<ChatMessageItem[]>([]);
   const [friends, setFriends] = useState<FriendItem[]>([]);
-  const [selectedFriendId, setSelectedFriendId] = useState('');
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [dmText, setDmText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadInbox = async () => {
     const [inboxRes, friendsRes] = await Promise.all([
@@ -572,117 +575,187 @@ export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string
     setNotifications(inboxRes.notifications || []);
     setDirectMessages(inboxRes.directMessages || []);
     setFriends(friendsRes.friends || []);
-    if (friendsRes.friends?.length && !selectedFriendId) {
-      setSelectedFriendId(friendsRes.friends[0].userId);
-    }
   };
 
   useEffect(() => {
-    void loadInbox();
+    let active = true;
+    const refresh = () => {
+      if (active) void loadInbox().catch(() => { if (active) setError('Unable to refresh messages.'); });
+    };
+    refresh();
+    const interval = window.setInterval(refresh, 12000);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener('focus', refresh); };
   }, []);
 
   const markAllRead = async () => {
-    await apiFetch('/api/notifications/read-all', { method: 'POST' });
-    await loadInbox();
+    try {
+      await apiFetch('/api/notifications/read-all', { method: 'POST' });
+      await loadInbox();
+    } catch { setError('Unable to mark notifications as read.'); }
   };
+
+  // Each conversation has its own card; recipients are taken from the message
+  // record instead of assuming every message belongs to the selected friend.
+  const peers = new Map<string, { userId: string; username: string; avatarId: string; latest?: ChatMessageItem }>();
+  for (const friend of friends) {
+    peers.set(friend.userId, { userId: friend.userId, username: friend.username, avatarId: friend.avatarId });
+  }
+  for (const m of directMessages) {
+    const peerId = m.senderId === user?.id ? m.recipientId : m.senderId;
+    if (!peerId) continue;
+    const existing = peers.get(peerId);
+    const name = m.senderId === peerId ? m.senderUsername : (m.recipientUsername || existing?.username || 'Player');
+    const avatar = m.senderId === peerId ? m.senderAvatarId : (m.recipientAvatarId || existing?.avatarId || 'ace-spade');
+    peers.set(peerId, {
+      userId: peerId,
+      username: existing?.username || name,
+      avatarId: existing?.avatarId || avatar,
+      latest: !existing?.latest || m.createdAt > existing.latest.createdAt ? m : existing.latest,
+    });
+  }
+  const conversations = [...peers.values()].sort((a, b) =>
+    (b.latest?.createdAt || '').localeCompare(a.latest?.createdAt || '') || a.username.localeCompare(b.username)
+  );
+  const activeFriend = selectedFriendId ? peers.get(selectedFriendId) : null;
+  const activeMessages = directMessages.filter(m =>
+    m.senderId === selectedFriendId && m.recipientId === user?.id ||
+    m.senderId === user?.id && m.recipientId === selectedFriendId
+  );
 
   const sendDirect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFriendId || !dmText.trim()) return;
-    await apiFetch('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({
-        channelType: 'direct',
-        channelId: selectedFriendId,
-        recipientId: selectedFriendId,
-        message: dmText.trim(),
-      }),
-    });
-    setDmText('');
-    await loadInbox();
+    if (!selectedFriendId || !dmText.trim() || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      await apiFetch('/api/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          channelType: 'direct', channelId: selectedFriendId,
+          recipientId: selectedFriendId, message: dmText.trim(),
+        }),
+      });
+      setDmText('');
+      await loadInbox();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Message could not be sent.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={onBack} className="btn-glossy btn-glossy-dark w-10 h-10 rounded-full flex items-center justify-center text-slate-200">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-xl font-display font-bold text-white">Inbox &amp; Notifications</h1>
-        </div>
-        <button type="button" onClick={markAllRead} className="text-xs font-semibold text-cyan-400 hover:underline">
-          Mark all read
+    <div className="max-w-3xl mx-auto p-3 sm:p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={selectedFriendId ? () => setSelectedFriendId(null) : onBack} aria-label="Back"
+          className="btn-glossy btn-glossy-dark w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-slate-200">
+          <ChevronLeft className="w-5 h-5" />
         </button>
-      </div>
-
-      <div className="glass-bubbly rounded-[28px] p-4 space-y-2.5">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1.5">
-          <Bell className="w-3.5 h-3.5 text-amber-400" /> Notifications
-        </h2>
-        {notifications.length === 0 ? (
-          <p className="text-xs text-slate-500 py-3">No notifications yet.</p>
-        ) : (
-          notifications.map((n) => (
-            <div key={n.id} className={`rounded-2xl border p-3.5 ${n.isRead ? 'border-slate-800 bg-slate-900/40' : 'border-cyan-500/40 bg-cyan-500/5'}`}>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-white">{n.title}</p>
-                <span className="text-[10px] text-slate-500">{new Date(n.createdAt).toLocaleTimeString()}</span>
-              </div>
-              <p className="text-xs text-slate-300 mt-0.5">{n.body}</p>
-              {n.actionUrl?.startsWith('#join-code:') && (
-                <button
-                  type="button"
-                  onClick={() => onJoinCode(n.actionUrl!.replace('#join-code:', ''))}
-                  className="btn-glossy btn-glossy-blue mt-2 px-3.5 py-1.5 rounded-full text-white text-xs font-bold"
-                >
-                  Join Table
-                </button>
-              )}
-            </div>
-          ))
+        <h1 className="text-lg sm:text-xl font-display font-bold text-white min-w-0 flex-1">
+          {activeFriend ? activeFriend.username : 'Inbox & Notifications'}
+        </h1>
+        {!selectedFriendId && (
+          <button type="button" onClick={() => void markAllRead()} className="text-xs font-semibold text-cyan-300 shrink-0">
+            Mark read
+          </button>
         )}
       </div>
 
-      <div className="glass-bubbly rounded-[28px] p-4 space-y-3">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase">Direct Messages</h2>
-        {friends.length === 0 ? (
-          <p className="text-xs text-slate-500">Add friends to exchange direct messages.</p>
-        ) : (
-          <>
-            <select
-              value={selectedFriendId}
-              onChange={(e) => setSelectedFriendId(e.target.value)}
-              className="input-bubbly w-full rounded-full px-3.5 py-2 text-xs text-white"
-            >
-              {friends.map((f) => (
-                <option key={f.userId} value={f.userId}>
-                  {f.username}
-                </option>
-              ))}
-            </select>
-            <div className="max-h-48 overflow-y-auto space-y-2 py-1">
-              {directMessages.map((m) => (
-                <div key={m.id} className="text-xs rounded-2xl bg-slate-900/70 px-3 py-2">
-                  <span className="font-semibold text-cyan-300">{m.senderUsername}: </span>
-                  <span className="text-slate-200">{m.message}</span>
+      {error && <p role="alert" className="rounded-xl border border-rose-400/50 bg-rose-950/50 px-3 py-2 text-sm text-rose-200">{error}</p>}
+
+      {!selectedFriendId && (
+        <>
+          <section className="glass-bubbly rounded-[24px] p-3 sm:p-4 space-y-2.5" aria-label="Notifications">
+            <h2 className="text-xs font-semibold uppercase text-amber-200 flex gap-2 items-center">
+              <Bell className="w-4 h-4" /> Notifications
+            </h2>
+            {notifications.length === 0 ? (
+              <p className="text-sm text-slate-400">No notifications yet.</p>
+            ) : notifications.map(n => (
+              <div key={n.id} className={'rounded-2xl border p-3 ' + (n.isRead ? 'bg-slate-900/50 border-slate-700/60' : 'bg-cyan-950/30 border-cyan-500/40')}>
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-sm font-semibold text-white">{n.title}</p>
+                  <span className="text-[10px] text-slate-400 shrink-0">{new Date(n.createdAt).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}</span>
                 </div>
-              ))}
+                <p className="text-xs text-slate-300 mt-1">{n.body}</p>
+                {n.actionUrl?.startsWith('#join-code:') && (
+                  <button type="button" onClick={() => onJoinCode(n.actionUrl!.replace('#join-code:', ''))}
+                    className="mt-2 btn-glossy btn-glossy-blue px-3 py-1.5 rounded-full text-xs font-bold">Join table</button>
+                )}
+              </div>
+            ))}
+          </section>
+
+          <section className="glass-bubbly rounded-[24px] p-3 sm:p-4 space-y-3" aria-label="Conversations">
+            <h2 className="text-xs uppercase tracking-wider text-amber-200 font-bold">Messages · Tap a friend to open</h2>
+            {conversations.length === 0 ? (
+              <p className="text-sm text-slate-400">Add friends to start a conversation.</p>
+            ) : conversations.map(peer => (
+              <div key={peer.userId} className="flex items-center gap-2 rounded-2xl border border-cyan-600/35 bg-slate-950/65 p-2.5 sm:p-3">
+                <PlayerAvatar playerId={peer.userId} avatarId={peer.avatarId} username={peer.username} size="md" />
+                <button type="button" onClick={() => { setSelectedFriendId(peer.userId); setError(null); }}
+                  className="min-w-0 flex-1 text-left flex items-center gap-2" aria-label={'Open conversation with ' + peer.username}>
+                  <span className="min-w-0 flex-1">
+                    <strong className="block text-white text-sm truncate">{peer.username}</strong>
+                    <span className="block text-xs text-slate-300 truncate">
+                      {peer.latest ? ((peer.latest.senderId === user?.id ? 'You: ' : peer.username + ': ') + peer.latest.message) : 'Start a conversation'}
+                    </span>
+                  </span>
+                  <span className="text-amber-300 text-lg shrink-0">›</span>
+                </button>
+              </div>
+            ))}
+          </section>
+        </>
+      )}
+
+      {selectedFriendId && activeFriend && (
+        <section className="glass-bubbly rounded-[24px] p-3 sm:p-4 space-y-3" aria-label={'Conversation with ' + activeFriend.username}>
+          <div className="flex items-center gap-3 border-b border-slate-700/70 pb-3">
+            <PlayerAvatar playerId={activeFriend.userId} avatarId={activeFriend.avatarId} username={activeFriend.username} size="md" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-bold text-white truncate">{activeFriend.username}</h2>
+              <p className="text-xs text-slate-400">Tap their picture to view their profile</p>
             </div>
-            <form onSubmit={sendDirect} className="flex gap-2">
-              <input
-                value={dmText}
-                onChange={(e) => setDmText(e.target.value)}
-                placeholder="Write a direct message..."
-                className="input-bubbly flex-1 rounded-full px-3.5 py-2 text-xs text-white"
-              />
-              <button type="submit" className="btn-glossy btn-glossy-blue px-4 py-2 rounded-full text-white">
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </>
-        )}
-      </div>
+          </div>
+          <div className="space-y-3 max-h-[55dvh] min-h-32 overflow-y-auto py-2" aria-live="polite">
+            {activeMessages.length === 0 && (
+              <p className="text-center text-sm text-slate-400 py-8">No messages yet. Say hello!</p>
+            )}
+            {activeMessages.map(m => {
+              const mine = m.senderId === user?.id;
+              return (
+                <div key={m.id} className={'flex items-end gap-2 ' + (mine ? 'justify-end' : 'justify-start')}>
+                  {!mine && <PlayerAvatar playerId={m.senderId} avatarId={m.senderAvatarId} username={m.senderUsername} size="xs" />}
+                  <div className={'min-w-0 max-w-[85%] rounded-2xl border p-3 ' +
+                    (mine ? 'bg-emerald-950/80 border-emerald-400/50' : 'bg-slate-900/90 border-cyan-500/35')}>
+                    <p className={'text-[11px] font-semibold mb-1 ' + (mine ? 'text-emerald-300' : 'text-cyan-300')}>
+                      {mine ? 'You → ' + activeFriend.username : m.senderUsername + ' → You'}
+                    </p>
+                    <p className="text-sm text-white whitespace-pre-wrap break-words">{m.message}</p>
+                    <p className="text-[10px] text-slate-400 mt-2 text-right">
+                      {new Date(m.createdAt).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'})}
+                    </p>
+                  </div>
+                  {mine && <PlayerAvatar playerId={user?.id} avatarId={user?.avatarId} username={user?.username} size="xs" />}
+                </div>
+              );
+            })}
+          </div>
+          <form onSubmit={sendDirect} className="flex items-end gap-2">
+            <input value={dmText} maxLength={400} onChange={e => setDmText(e.target.value)}
+              placeholder={'Message ' + activeFriend.username + '…'} aria-label="Direct message"
+              className="input-bubbly min-w-0 flex-1 rounded-full px-4 py-3 text-sm text-white" />
+            <button type="submit" disabled={sending || !dmText.trim() || !friends.some(f => f.userId === selectedFriendId)}
+              className="btn-glossy btn-glossy-blue shrink-0 p-3 rounded-full text-white disabled:opacity-40" aria-label="Send message">
+              <Send className="w-5 h-5" />
+            </button>
+          </form>
+          {!friends.some(f => f.userId === selectedFriendId) &&
+            <p className="text-xs text-slate-400">You can view old messages, but must be friends to send new ones.</p>}
+        </section>
+      )}
     </div>
   );
 };
