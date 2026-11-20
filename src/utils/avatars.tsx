@@ -1,4 +1,5 @@
 import React from 'react';
+import { useOpenPlayerProfile } from '../context/PlayerProfileContext.ts';
 
 export interface AvatarOption {
   id: string;
@@ -24,7 +25,10 @@ export const PlayerAvatar: React.FC<{
   username?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
-}> = ({ avatarId = 'ace-spade', username, size = 'md', className = '' }) => {
+  playerId?: string;
+}> = ({ avatarId = 'ace-spade', username, size = 'md', className = '', playerId }) => {
+  const openProfile = useOpenPlayerProfile();
+  const isPhoto = typeof avatarId === 'string' && /^https:\/\/[^\s]+\/storage\/v1\/object\/public\/player-avatars\//.test(avatarId);
   const opt = AVATAR_OPTIONS.find((a) => a.id === avatarId) ?? AVATAR_OPTIONS[0];
   const dims =
     size === 'xs'
@@ -39,16 +43,29 @@ export const PlayerAvatar: React.FC<{
 
   const initial = username ? username.slice(0, 1).toUpperCase() : opt.symbol;
 
-  return (
-    <div
+  const avatar = (
+    <span
       className={`relative inline-flex items-center justify-center rounded-full bg-gradient-to-br ${opt.gradient} border-2 ${opt.ring} text-white font-display font-bold shadow-[0_0_16px_rgba(56,189,248,0.35),0_6px_14px_rgba(0,0,0,0.5)] shrink-0 select-none overflow-hidden ${dims} ${className}`}
       aria-label={username ? `${username} avatar` : opt.label}
     >
-      <span className="pointer-events-none absolute inset-x-1 top-0.5 h-1/2 rounded-full bg-gradient-to-b from-white/40 to-transparent" />
-      <span className="relative z-10 drop-shadow">{opt.symbol}</span>
-      {username && size !== 'xs' && (
-        <span className="sr-only">{initial}</span>
+      {isPhoto ? (
+        <img src={avatarId} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+      ) : (
+        <>
+          <span className="pointer-events-none absolute inset-x-1 top-0.5 h-1/2 rounded-full bg-gradient-to-b from-white/40 to-transparent" />
+          <span className="relative z-10 drop-shadow">{opt.symbol}</span>
+          {username && size !== 'xs' && <span className="sr-only">{initial}</span>}
+        </>
       )}
-    </div>
+    </span>
+  );
+  if (!playerId || !openProfile) return avatar;
+  return (
+    <button type="button" title={`View ${username || 'player'} profile`}
+      aria-label={`Open ${username || 'player'} profile`}
+      onClick={(event) => { event.stopPropagation(); openProfile(playerId); }}
+      className="inline-flex shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">
+      {avatar}
+    </button>
   );
 };
