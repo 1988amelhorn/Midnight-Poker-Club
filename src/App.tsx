@@ -31,6 +31,7 @@ import {
 } from './components/LobbyViews.tsx';
 import { OfflineIndicator } from './components/OfflineIndicator.tsx';
 import { PokerTableView } from './components/PokerTableView.tsx';
+import { OfflinePokerPracticeView } from './components/OfflinePokerPracticeView.tsx';
 import { PWAInstallButton } from './components/PWAInstallButton.tsx';
 import {
   AdminDashboardView,
@@ -322,7 +323,7 @@ const ClubShell: React.FC = () => {
     screen === 'blackjack_browser' ||
     screen === 'create_private' ||
     screen === 'join_private' ||
-    screen === 'room_waiting';
+    screen === 'room_waiting' || screen === 'practice_poker';
 
   const isEventsActive =
     screen === 'tournament_browser' ||
@@ -439,11 +440,14 @@ const ClubShell: React.FC = () => {
       <main className="flex-1 pb-24 md:pb-8">
         {screen === 'lobby' && <MainLobbyView onNavigate={handleNavigate} pendingFriendRequests={pendingFriendRequests} isOwner={isOwner} />}
 
+        {screen === 'practice_poker' && <OfflinePokerPracticeView onExit={() => setScreen('holdem_browser')} />}
+
         {screen === 'holdem_browser' && (
           <RoomBrowserView
             gameType="holdem"
             onEnterRoom={enterRoom}
             onCreateRoom={() => setScreen('create_private')}
+            onPractice={() => setScreen('practice_poker')}
             onBack={() => setScreen('lobby')}
           />
         )}
@@ -453,6 +457,7 @@ const ClubShell: React.FC = () => {
             gameType="blackjack"
             onEnterRoom={enterRoom}
             onCreateRoom={() => setScreen('create_private')}
+            onPractice={() => setScreen('practice_poker')}
             onBack={() => setScreen('lobby')}
           />
         )}
