@@ -1004,20 +1004,27 @@ export const WalletView: React.FC<{ onBack: () => void; onOpenDailyBonus: () => 
 
 // 25. DAILY BONUS
 export const DailyBonusView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const { wallet, refreshWallet } = useAuth();
+  const { wallet, refreshWallet, setWalletBalanceLocally } = useAuth();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
 
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const cooldown = Boolean(wallet?.nextDailyBonusAt && Date.parse(wallet.nextDailyBonusAt) > now);
+
   const handleClaim = async () => {
+    if (claiming || cooldown) return;
     setError(null);
     setMessage(null);
     setClaiming(true);
     try {
-      const res = await apiFetch<{ claimed: boolean; newBalance: number; streak: number }>('/api/wallet/daily-bonus', {
+      const res = await apiFetch<{ claimed: boolean; newBalance: number; streak: number; nextClaimAt: string }>('/api/wallet/daily-bonus', {
         method: 'POST',
       });
-      await refreshWallet();
+      if (!res.claimed) throw new Error('Daily bonus already claimed.');
+      setWalletBalanceLocally(res.newBalance, res);
+      void refreshWallet().catch(() => {});
       setMessage(`Claimed 2,000 virtual chips! Streak: Day ${res.streak}. New balance: ${res.newBalance.toLocaleString()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Daily bonus not yet available');
@@ -1056,11 +1063,11 @@ export const DailyBonusView: React.FC<{ onBack: () => void }> = ({ onBack }) => 
 
         <button
           type="button"
-          disabled={claiming}
+          disabled={claiming || cooldown}
           onClick={handleClaim}
           className="btn-glossy btn-glossy-gold w-full py-3.5 rounded-full text-slate-950 font-display font-extrabold text-sm"
         >
-          {claiming ? 'Claiming...' : 'Claim 2,000 Daily Chips'}
+          {claiming ? 'Claiming...' : cooldown ? 'Daily bonus claimed' : 'Claim 2,000 Daily Chips'}
         </button>
       </div>
     </div>
