@@ -34,7 +34,7 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   updateProfile: (patch: Partial<UserProfile>) => Promise<void>;
   deleteAccount: () => Promise<void>;
-  setWalletBalanceLocally: (newBalance: number) => void;
+  setWalletBalanceLocally: (newBalance: number, bonus?: { nextClaimAt: string; streak: number }) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -50,6 +50,7 @@ type LegacyProfile = {
   blackjack_wins: number;
   lifetime_winnings: number;
   last_reload_at: string | null;
+  daily_bonus_streak: number;
   created_at: string;
   updated_at: string;
 };
@@ -93,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('uid,username,avatar_url,chips,total_hands_played,hands_won,tournament_wins,blackjack_wins,lifetime_winnings,last_reload_at,created_at,updated_at')
+      .select('uid,username,avatar_url,chips,total_hands_played,hands_won,tournament_wins,blackjack_wins,lifetime_winnings,last_reload_at,daily_bonus_streak,created_at,updated_at')
       .eq('uid', auth.user.id)
       .single();
 
@@ -126,8 +127,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       chipBalance: asNumber(p.chips),
       welcomeBonusClaimed: true,
       lastDailyBonusAt: p.last_reload_at,
-      nextDailyBonusAt: null,
-      dailyStreak: 0,
+      nextDailyBonusAt: p.last_reload_at ? new Date(Date.parse(p.last_reload_at) + 86400000).toISOString() : null,
+      dailyStreak: asNumber(p.daily_bonus_streak),
       lifetimeWon: asNumber(p.lifetime_winnings),
       lifetimeLost: 0,
     };
@@ -145,7 +146,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStoredToken(tok);
     setToken(tok);
     setUser(profile);
-    setWallet(playerWallet);
+    const { data: savedWallet } = await supabase.rpc('get_midnight_wallet');
+    const saved = Array.isArray(savedWallet) ? savedWallet[0] : savedWallet;
+    setWallet(saved ? { ...playerWallet, chipBalance: asNumber(saved.chip_balance),
+      lastDailyBonusAt: saved.last_reload_at, nextDailyBonusAt: saved.next_claim_at,
+      dailyStreak: asNumber(saved.daily_streak) } : playerWallet);
     setStats(playerStats);
     setAchievements([]);
     setActiveRoom(null);
@@ -169,17 +174,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const supabase = await getSupabaseClient();
     const { data: session } = await (supabase?.auth.getSession() ?? Promise.resolve({ data: { session: null } }));
     if (!supabase || !session.session) return;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('chips,last_reload_at,lifetime_winnings')
-      .eq('uid', session.session.user.id)
-      .single();
-    if (error) throw new Error(`Unable to refresh chips: ${error.message}`);
+    const { data, error } = await supabase.rpc('get_midnight_wallet');
+    const saved = Array.isArray(data) ? data[0] : data;
+    if (error || !saved) throw new Error(`Unable to refresh chips: ${error?.message || 'Wallet not found'}`);
     setWallet(prev => prev ? {
       ...prev,
-      chipBalance: asNumber(data.chips),
-      lastDailyBonusAt: data.last_reload_at,
-      lifetimeWon: asNumber(data.lifetime_winnings),
+      chipBalance: asNumber(saved.chip_balance),
+      lastDailyBonusAt: saved.last_reload_at,
+      nextDailyBonusAt: saved.next_claim_at,
+      dailyStreak: asNumber(saved.daily_streak),
     } : prev);
   }, []);
 
@@ -332,8 +335,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await apiFetch('/api/account', { method: 'DELETE' });
     await logout();
   };
-  const setWalletBalanceLocally = (newBalance: number) => {
-    setWallet(prev => prev ? { ...prev, chipBalance: newBalance } : prev);
+  const setWalletBalanceLocally = (newBalance: number, bonus?: { nextClaimAt: string; streak: number }) => {
+    setWallet(prev => prev ? { ...prev, chipBalance: newBalance,
+      ...(bonus ? { nextDailyBonusAt: bonus.nextClaimAt, dailyStreak: bonus.streak,
+        lastDailyBonusAt: new Date(Date.parse(bonus.nextClaimAt) - 86400000).toISOString() } : {}) } : prev);
   };
 
   return <AuthContext.Provider value={{

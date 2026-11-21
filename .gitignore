@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+.midnight-wallet-outbox.json*
+supabase/.temp/

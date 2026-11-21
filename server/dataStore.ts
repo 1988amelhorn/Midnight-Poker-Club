@@ -1,3 +1,4 @@
+import { WalletWriteQueue, signWalletEvent } from './walletPersistence.ts';
 import { createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import type {
   AchievementBadge,
@@ -83,6 +84,17 @@ export class ServerDataStore {
   public systemLogs: SystemLogEntry[] = [];
   public onlineUsers = new Map<string, { roomId?: string | null; roomName?: string | null; lastPing: number }>();
   private userAccessTokens = new Map<string, string>();
+  private walletProcessId = randomUUID();
+  private walletRecovered = new Set<string>();
+  private walletWrites: WalletWriteQueue | null = null;
+
+  public flushWallet(userId: string) { return this.walletWrites?.flush(userId) ?? Promise.resolve(); }
+
+  public settleTableWallet(userId: string, roomId: string, stack: number, reason: string): Promise<void> {
+    if (!this.userAccessTokens.has(userId)) return Promise.resolve();
+    if (!this.walletWrites) return Promise.reject(new Error('Persistent wallet unavailable'));
+    return this.walletWrites.enqueue({ uid: userId, op: 'settle', room: roomId, amount: stack, reason, process: this.walletProcessId }).then(() => {});
+  }
 
   public globalSettings: GlobalSettings = {
     maintenanceMode: false,
@@ -94,6 +106,14 @@ export class ServerDataStore {
   };
 
   constructor() {
+    const secret = process.env.MPC_WALLET_SIGNING_SECRET;
+    if (secret && supabaseAuthVerifier) {
+      this.walletWrites = new WalletWriteQueue(process.env.MPC_WALLET_OUTBOX || '.midnight-wallet-outbox.json', async event => {
+        const { data, error } = await supabaseAuthVerifier!.rpc('apply_midnight_wallet_event', signWalletEvent(event, secret));
+        if (error || !Number.isSafeInteger(Number(data))) throw new Error('Wallet event not saved');
+        return Number(data);
+      });
+    }
     this.seedInitialPublicLobbyProfiles();
   }
 
@@ -166,6 +186,11 @@ export class ServerDataStore {
       const { data, error } = await supabaseAuthVerifier.auth.getUser(token);
       if (!error && data.user) {
         this.userAccessTokens.set(data.user.id, token);
+        if (!this.walletRecovered.has(data.user.id) && this.walletWrites) {
+          void this.walletWrites.enqueue({ uid: data.user.id, op: 'recover', amount: 0, process: this.walletProcessId });
+          this.walletRecovered.add(data.user.id);
+        }
+        await this.flushWallet(data.user.id);
         return await this.ensureSupabaseUserSynced(
           data.user.id,
           data.user.email || '',
@@ -201,7 +226,7 @@ export class ServerDataStore {
     // username and chips with a temporary local profile.
     if (isSupabaseAuthEnabled && db) {
       const { data: legacy, error: legacyError } = await db.from('profiles')
-        .select('uid,username,avatar_url,chips,total_hands_played,hands_won,tournament_wins,blackjack_wins,lifetime_winnings,created_at')
+        .select('uid,username,avatar_url,chips,total_hands_played,hands_won,tournament_wins,blackjack_wins,lifetime_winnings,last_reload_at,daily_bonus_streak,created_at')
         .eq('uid', userId).maybeSingle();
       if (!legacyError && legacy) {
         let record = this.users.get(userId);
@@ -221,6 +246,9 @@ export class ServerDataStore {
         record.profile.createdAt = legacy.created_at;
         record.profile.emailVerified = emailVerified;
         record.wallet.chipBalance = Number(legacy.chips ?? 0);
+        record.wallet.lastDailyBonusAt = legacy.last_reload_at;
+        record.wallet.nextDailyBonusAt = legacy.last_reload_at ? new Date(Date.parse(legacy.last_reload_at) + 86400000).toISOString() : null;
+        record.wallet.dailyStreak = Number(legacy.daily_bonus_streak || 0);
         record.wallet.welcomeBonusClaimed = true;
         record.wallet.lifetimeWon = Number(legacy.lifetime_winnings ?? 0);
         record.stats.pokerHandsPlayed = Number(legacy.total_hands_played ?? 0);
@@ -705,6 +733,12 @@ export class ServerDataStore {
       return { ok: false, newBalance: rec.wallet.chipBalance, error: 'Insufficient virtual chips' };
     }
 
+    if (this.userAccessTokens.has(params.userId)) {
+      if (!this.walletWrites) return { ok: false, newBalance: rec.wallet.chipBalance, error: 'Persistent wallet unavailable. Please retry shortly.' };
+      const op = params.txType === 'table_buyin' ? 'buyin' : params.txType === 'table_cashout' ? 'cashout' : 'adjust';
+      void this.walletWrites.enqueue({ uid: params.userId, op, room: params.referenceId,
+        amount: op === 'buyin' ? -deltaInt : deltaInt, reason: params.txType, process: this.walletProcessId });
+    }
     rec.wallet.chipBalance = nextBalance;
     if (params.txType === 'poker_win' || params.txType === 'blackjack_payout' || params.txType === 'tournament_payout') {
       if (deltaInt > 0) rec.wallet.lifetimeWon += deltaInt;
@@ -729,7 +763,7 @@ export class ServerDataStore {
     if (list.length > 200) list.pop();
     this.transactions.set(params.userId, list);
 
-    if (isSupabaseConfigured && supabaseAdmin) {
+    if (!this.userAccessTokens.has(params.userId) && isSupabaseConfigured && supabaseAdmin) {
       void supabaseAdmin
         .from('player_wallets')
         .update({ chip_balance: nextBalance, lifetime_won: rec.wallet.lifetimeWon, updated_at: new Date().toISOString() })
@@ -827,11 +861,6 @@ export class ServerDataStore {
         streak_count: nextStreak,
         claimed_at: nowIso,
       });
-    } else {
-      const userDb = this.getDbForUser(userId);
-      if (userDb) {
-        void userDb.rpc('claim_daily_bonus_self');
-      }
     }
 
     return {

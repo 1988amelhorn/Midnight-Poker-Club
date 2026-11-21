@@ -347,6 +347,8 @@ export class GameManager {
     if (!room) return { ok: false, returnedChips: 0 };
 
     if (room.tournamentId) return { ok: false, returnedChips: 0 };
+    const seated = room.pokerEngine?.seats.some(s => s.userId === userId) || room.blackjackEngine?.seats.some(s => s.userId === userId);
+    if (!seated) return { ok: false, returnedChips: 0 };
     let remaining = 0;
     if (room.gameType === 'holdem' && room.pokerEngine) {
       remaining = room.pokerEngine.removePlayer(userId);
@@ -354,7 +356,7 @@ export class GameManager {
       remaining = room.blackjackEngine.removePlayer(userId);
     }
 
-    if (!room.tournamentId && remaining > 0) {
+    if (!room.tournamentId && remaining >= 0) {
       this.dataStore.mutateChips({
         userId,
         delta: remaining,
@@ -724,6 +726,12 @@ export class GameManager {
     for (const s of summary.seatNetChanges) {
       const rec = this.dataStore.users.get(s.userId);
       if (!rec) continue;
+      if (!room.tournamentId) {
+        const seat = engine.seats.find(seat => seat.userId === s.userId);
+        if (seat) void this.dataStore.settleTableWallet(s.userId, room.id, seat.chips, 'poker_hand')
+          .then(() => this.notifyUser(s.userId, { type: 'wallet:refresh' }))
+          .catch(() => this.notifyUser(s.userId, { type: 'action:error', error: 'Wallet sync pending. Please reconnect.' }));
+      }
       rec.stats.pokerHandsPlayed += 1;
       rec.stats.totalGamesPlayed += 1;
       if (s.isWinner) rec.stats.pokerHandsWon += 1;
@@ -807,6 +815,10 @@ export class GameManager {
     for (const r of summary.seatResults) {
       const rec = this.dataStore.users.get(r.userId);
       if (!rec) continue;
+      const seat = engine.seats.find(seat => seat.userId === r.userId);
+      if (seat) void this.dataStore.settleTableWallet(r.userId, room.id, seat.tableChips, 'blackjack_hand')
+        .then(() => this.notifyUser(r.userId, { type: 'wallet:refresh' }))
+        .catch(() => this.notifyUser(r.userId, { type: 'action:error', error: 'Wallet sync pending. Please reconnect.' }));
       rec.stats.blackjackHandsPlayed += r.handsPlayed;
       rec.stats.blackjackHandsWon += r.handsWon;
       if (r.hadBlackjack) rec.stats.blackjackBlackjacks += 1;

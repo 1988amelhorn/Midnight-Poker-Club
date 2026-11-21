@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { claimSavedDailyBonus } from './server/walletPersistence.ts';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import http from 'node:http';
 import path from 'node:path';
@@ -53,6 +54,19 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
     next();
   });
   app.use(express.json({ limit: '1mb' }));
+  // Do not acknowledge a game action until its wallet outbox has been saved.
+  app.use('/api', (req: AuthedRequest, res, next) => {
+    const send = res.json.bind(res);
+    res.json = ((body: unknown) => {
+      const uid = req.authUser?.profile.id;
+      if (!uid) return send(body);
+      void dataStore.flushWallet(uid).then(() => send(body)).catch(() => {
+        res.status(503); send({ error: 'Wallet save is pending. Please retry shortly.' });
+      });
+      return res;
+    }) as typeof res.json;
+    next();
+  });
 
   const dataStore = new ServerDataStore();
   const gameManager = new GameManager(dataStore, options);
@@ -86,7 +100,9 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
     if (!token) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    const user = await dataStore.authenticateToken(token);
+    let user: StoredUserRecord | null;
+    try { user = await dataStore.authenticateToken(token); }
+    catch { return res.status(503).json({ error: 'Wallet sync temporarily unavailable. Please retry shortly.' }); }
     if (!user) {
       return res.status(401).json({ error: 'Invalid or expired session' });
     }
@@ -181,6 +197,7 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
   app.get('/api/health', (_req, res) => {
     res.json({
       status: 'ok',
+      walletPersistenceEnabled: Boolean(process.env.MPC_WALLET_SIGNING_SECRET),
       supabaseConfigured: isSupabaseConfigured,
       supabaseAuthEnabled: isSupabaseAuthEnabled,
       mode: isSupabaseConfigured ? 'supabase' : isSupabaseAuthEnabled ? 'supabase-auth' : 'local-server-authoritative',
@@ -380,7 +397,21 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
     return res.json(result);
   });
 
-  app.post('/api/wallet/daily-bonus', requireAuth, rateLimit(15, 60_000), (req: AuthedRequest, res) => {
+  app.post('/api/wallet/daily-bonus', requireAuth, rateLimit(15, 60_000), async (req: AuthedRequest, res) => {
+    const db = friendsDb(req);
+    if (db) {
+      try {
+        const result = await claimSavedDailyBonus(db);
+        const wallet = req.authUser!.wallet;
+        wallet.chipBalance = result.availableBalance;
+        wallet.dailyStreak = result.streak;
+        wallet.nextDailyBonusAt = result.nextClaimAt;
+        wallet.lastDailyBonusAt = new Date(Date.parse(result.nextClaimAt) - 86400000).toISOString();
+        return res.status(result.claimed ? 200 : 400).json(result);
+      } catch (error) {
+        return res.status(503).json({ error: error instanceof Error ? error.message : 'Bonus could not be saved' });
+      }
+    }
     const result = dataStore.claimDailyBonus(req.authUser!.profile.id);
     if (!result.ok) return res.status(400).json(result);
     return res.json(result);
@@ -1447,7 +1478,7 @@ export function createNeonPokerServer(options?: GameManagerOptions & { stateless
         handleFrame(frame);
       }
       pendingFrames.length = 0;
-    });
+    }).catch(() => ws.close(1011, 'Wallet sync temporarily unavailable'));
   });
 
   return { app, httpServer, dataStore, gameManager };
