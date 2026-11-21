@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Updating Midnight Poker Club</title>
+<style>body{background:#0b0308;color:#ffe6a0;font:18px system-ui;text-align:center;padding:20vh 24px}a{color:inherit}</style>
+<h1>Updating Midnight Poker Club…</h1>
+<p id="status">Loading the latest game. Your login and account will be kept.</p>
+<script>
+(async () => {
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.filter(r => new URL(r.scope).origin === location.origin).map(r => r.unregister()));
+    }
+    if ('caches' in window) {
+      const names = await caches.keys();
+      await Promise.all(names.filter(n => n.startsWith('workbox-precache')).map(n => caches.delete(n)));
+    }
+    // Account sessions are in localStorage; never clear them during an update.
+    location.replace('/?updated=' + Date.now());
+  } catch {
+    document.getElementById('status').textContent = 'Please close and reopen the app to finish updating.';
+  }
+})();
+</script>
+<p><a href="/">Open the game</a></p>
+</html>
