@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Award,
   Bell,
@@ -22,6 +22,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import { buildConversations, getConversationMessages } from '../lib/conversations.ts';
 import { apiFetch, makeIdempotencyKey } from '../lib/api.ts';
 import { getSupabaseClient } from '../lib/supabase.ts';
 import { useAuth } from '../context/AuthContext.tsx';
@@ -628,7 +629,10 @@ export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string
   const [directMessages, setDirectMessages] = useState<ChatMessageItem[]>([]);
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
-  const [dmText, setDmText] = useState('');
+  const [inboxTab, setInboxTab] = useState<'messages' | 'notifications'>('messages');
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const dmText = selectedFriendId ? drafts[selectedFriendId] || '' : '';
+  const messageEnd = useRef<HTMLDivElement>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -660,33 +664,13 @@ export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string
     } catch { setError('Unable to mark notifications as read.'); }
   };
 
-  // Each conversation has its own card; recipients are taken from the message
-  // record instead of assuming every message belongs to the selected friend.
-  const peers = new Map<string, { userId: string; username: string; avatarId: string; latest?: ChatMessageItem }>();
-  for (const friend of friends) {
-    peers.set(friend.userId, { userId: friend.userId, username: friend.username, avatarId: friend.avatarId });
-  }
-  for (const m of directMessages) {
-    const peerId = m.senderId === user?.id ? m.recipientId : m.senderId;
-    if (!peerId) continue;
-    const existing = peers.get(peerId);
-    const name = m.senderId === peerId ? m.senderUsername : (m.recipientUsername || existing?.username || 'Player');
-    const avatar = m.senderId === peerId ? m.senderAvatarId : (m.recipientAvatarId || existing?.avatarId || 'ace-spade');
-    peers.set(peerId, {
-      userId: peerId,
-      username: existing?.username || name,
-      avatarId: existing?.avatarId || avatar,
-      latest: !existing?.latest || m.createdAt > existing.latest.createdAt ? m : existing.latest,
-    });
-  }
-  const conversations = [...peers.values()].sort((a, b) =>
-    (b.latest?.createdAt || '').localeCompare(a.latest?.createdAt || '') || a.username.localeCompare(b.username)
-  );
-  const activeFriend = selectedFriendId ? peers.get(selectedFriendId) : null;
-  const activeMessages = directMessages.filter(m =>
-    m.senderId === selectedFriendId && m.recipientId === user?.id ||
-    m.senderId === user?.id && m.recipientId === selectedFriendId
-  );
+  const conversations = buildConversations(user?.id, friends, directMessages);
+  const activeFriend = conversations.find(peer => peer.userId === selectedFriendId);
+  const activeMessages = getConversationMessages(user?.id, selectedFriendId, directMessages);
+  const latestMessageId = activeMessages.at(-1)?.id;
+  useEffect(() => {
+    messageEnd.current?.scrollIntoView({ block: 'nearest' });
+  }, [selectedFriendId, latestMessageId]);
 
   const sendDirect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -701,7 +685,7 @@ export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string
           recipientId: selectedFriendId, message: dmText.trim(),
         }),
       });
-      setDmText('');
+      setDrafts(current => ({ ...current, [selectedFriendId]: '' }));
       await loadInbox();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Message could not be sent.');
@@ -718,9 +702,9 @@ export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string
           <ChevronLeft className="w-5 h-5" />
         </button>
         <h1 className="text-lg sm:text-xl font-display font-bold text-white min-w-0 flex-1">
-          {activeFriend ? activeFriend.username : 'Inbox & Notifications'}
+          {activeFriend ? activeFriend.username : 'Inbox'}
         </h1>
-        {!selectedFriendId && (
+        {!selectedFriendId && inboxTab === 'notifications' && (
           <button type="button" onClick={() => void markAllRead()} className="text-xs font-semibold text-cyan-300 shrink-0">
             Mark read
           </button>
@@ -731,7 +715,17 @@ export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string
 
       {!selectedFriendId && (
         <>
-          <section className="glass-bubbly rounded-[24px] p-3 sm:p-4 space-y-2.5" aria-label="Notifications">
+          <div className="flex gap-2" role="tablist" aria-label="Inbox sections">
+            {(['messages', 'notifications'] as const).map(tab => (
+              <button key={tab} type="button" role="tab" aria-selected={inboxTab === tab}
+                onClick={() => setInboxTab(tab)}
+                className={'flex-1 rounded-full px-4 py-3 text-sm font-bold ' + (inboxTab === tab ? 'bg-cyan-500 text-slate-950' : 'bg-slate-900 text-slate-300')}>
+                {tab === 'messages' ? 'Messages' : 'Notifications'}
+                {tab === 'notifications' && notifications.some(n => !n.isRead) && ' •'}
+              </button>
+            ))}
+          </div>
+          {inboxTab === 'notifications' && <section className="glass-bubbly rounded-[24px] p-3 sm:p-4 space-y-2.5" aria-label="Notifications">
             <h2 className="text-xs font-semibold uppercase text-amber-200 flex gap-2 items-center">
               <Bell className="w-4 h-4" /> Notifications
             </h2>
@@ -750,28 +744,31 @@ export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string
                 )}
               </div>
             ))}
-          </section>
+          </section>}
 
-          <section className="glass-bubbly rounded-[24px] p-3 sm:p-4 space-y-3" aria-label="Conversations">
-            <h2 className="text-xs uppercase tracking-wider text-amber-200 font-bold">Messages · Tap a friend to open</h2>
+          {inboxTab === 'messages' && <section className="glass-bubbly rounded-[24px] p-3 sm:p-4 space-y-3" aria-label="Conversations">
+            <h2 className="text-xs uppercase tracking-wider text-amber-200 font-bold">Chats</h2>
+            <p className="text-xs text-slate-400">Tap a person to open your private conversation.</p>
             {conversations.length === 0 ? (
               <p className="text-sm text-slate-400">Add friends to start a conversation.</p>
             ) : conversations.map(peer => (
-              <div key={peer.userId} className="flex items-center gap-2 rounded-2xl border border-cyan-600/35 bg-slate-950/65 p-2.5 sm:p-3">
-                <PlayerAvatar playerId={peer.userId} avatarId={peer.avatarId} username={peer.username} size="md" />
-                <button type="button" onClick={() => { setSelectedFriendId(peer.userId); setError(null); }}
-                  className="min-w-0 flex-1 text-left flex items-center gap-2" aria-label={'Open conversation with ' + peer.username}>
+              <button key={peer.userId} type="button" onClick={() => { setSelectedFriendId(peer.userId); setError(null); }}
+                className="w-full min-w-0 text-left flex items-center gap-3 rounded-2xl border border-cyan-600/35 bg-slate-950/65 p-3 hover:bg-cyan-950/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+                aria-label={'Open conversation with ' + peer.username}>
+                <PlayerAvatar avatarId={peer.avatarId} username={peer.username} size="md" />
                   <span className="min-w-0 flex-1">
                     <strong className="block text-white text-sm truncate">{peer.username}</strong>
                     <span className="block text-xs text-slate-300 truncate">
                       {peer.latest ? ((peer.latest.senderId === user?.id ? 'You: ' : peer.username + ': ') + peer.latest.message) : 'Start a conversation'}
                     </span>
                   </span>
-                  <span className="text-amber-300 text-lg shrink-0">›</span>
-                </button>
-              </div>
+                  <span className="shrink-0 text-right text-[10px] text-slate-400">
+                    {peer.latest && new Date(peer.latest.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                    <span className="block text-amber-300 text-lg">›</span>
+                  </span>
+              </button>
             ))}
-          </section>
+          </section>}
         </>
       )}
 
@@ -784,7 +781,7 @@ export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string
               <p className="text-xs text-slate-400">Tap their picture to view their profile</p>
             </div>
           </div>
-          <div className="space-y-3 max-h-[55dvh] min-h-32 overflow-y-auto py-2" aria-live="polite">
+          <div key={selectedFriendId} className="space-y-3 max-h-[55dvh] min-h-32 overflow-y-auto py-2" aria-live="polite">
             {activeMessages.length === 0 && (
               <p className="text-center text-sm text-slate-400 py-8">No messages yet. Say hello!</p>
             )}
@@ -807,9 +804,10 @@ export const InboxView: React.FC<{ onBack: () => void; onJoinCode: (code: string
                 </div>
               );
             })}
+            <div ref={messageEnd} />
           </div>
           <form onSubmit={sendDirect} className="flex items-end gap-2">
-            <input value={dmText} maxLength={400} onChange={e => setDmText(e.target.value)}
+            <input value={dmText} maxLength={400} onChange={e => { if (selectedFriendId) setDrafts({ ...drafts, [selectedFriendId]: e.target.value }); }}
               placeholder={'Message ' + activeFriend.username + '…'} aria-label="Direct message"
               className="input-bubbly min-w-0 flex-1 rounded-full px-4 py-3 text-sm text-white" />
             <button type="submit" disabled={sending || !dmText.trim() || !friends.some(f => f.userId === selectedFriendId)}
