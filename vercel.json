@@ -2,12 +2,36 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/ws",
-      "destination": "/api/backend"
+      "source": "/api/update",
+      "destination": "/update.html"
     },
     {
       "source": "/api/:path*",
+      "destination": "https://midnight-poker-club.enzonic.dev/api/:path*"
+    },
+    {
+      "source": "/ws",
       "destination": "/api/backend"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/update.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
     }
   ]
 }

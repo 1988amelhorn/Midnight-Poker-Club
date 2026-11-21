@@ -10,6 +10,7 @@ import type {
 } from '../shared/types.ts';
 import { apiFetch, makeIdempotencyKey, websocketUrl } from '../lib/api.ts';
 import { useAuth } from './AuthContext.tsx';
+import { startLobbyRecovery } from '../lib/lobbyRecovery.ts';
 
 interface GameSocketContextValue {
   wsConnected: boolean;
@@ -90,6 +91,13 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setMultiplayerAvailable(false);
     }
   }, [token]);
+
+  // Recovery must keep running even when an earlier request marked us offline.
+  // The socket effect below deliberately stops sockets while offline.
+  useEffect(() => {
+    if (!token) return;
+    return startLobbyRecovery(refreshLobby);
+  }, [token, refreshLobby]);
 
   const loadRoomSnapshot = useCallback(async (roomId: string) => {
     const data = await apiFetch<{
@@ -208,7 +216,6 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
 
     connect();
-    void refreshLobby();
     const refreshActiveTable = () => {
       if (!navigator.onLine) return;
       if (activeRoomIdRef.current) {

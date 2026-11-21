@@ -66,8 +66,12 @@ export const MainLobbyView: React.FC<{
     <div className="royal-home casino-screen mx-auto w-full max-w-5xl px-3 pb-6 pt-3 sm:px-6 sm:pt-5">
       {multiplayerAvailable === false && (
         <div role="status" className="mb-4 rounded-2xl border border-amber-400/50 bg-amber-950/40 p-3 text-sm text-amber-100">
-          <strong className="block">Live game tables temporarily offline</strong>
-          We're connecting a reliable multiplayer server. Your account, friends and virtual chips are still available.
+          <strong className="block">Reconnecting to live tables…</strong>
+          Checking your connection again automatically. Your account and chips are safe.
+          <div className="mt-2 flex flex-wrap gap-3">
+            <button type="button" onClick={() => void refreshLobby()} className="font-bold underline">Retry connection</button>
+            <a href="/api/update" className="font-bold underline">Update app</a>
+          </div>
         </div>
       )}
       {activeRoom && (
