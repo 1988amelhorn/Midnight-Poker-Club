@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, Copy, Gauge, MessageSquare, Send, Settings, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '../lib/api.ts';
+import { TableBankroll } from './TableBankroll.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useGameSocket } from '../context/GameSocketContext.tsx';
 import { GAME_SPEED_CONFIG, getCardBlackjackValue, type GameSpeed } from '../shared/types.ts';
@@ -158,7 +159,7 @@ export const BlackjackTableView: React.FC<{
       className="casino-screen relative flex flex-col h-[100dvh] w-full overflow-hidden bg-[#060911] text-slate-100"
     >
       {/* Top Bar */}
-      <header className="neon-casino-panel relative z-20 flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 border-b border-sky-400/20 bg-[#080d1e]/90 backdrop-blur-xl shadow-[0_6px_28px_rgba(0,0,0,0.55)]">
+      <header className="neon-casino-panel relative z-20 shrink-0 flex flex-wrap items-center justify-between gap-2 px-3 sm:px-5 py-2.5 border-b border-sky-400/20 bg-[#080d1e]/90 backdrop-blur-xl shadow-[0_6px_28px_rgba(0,0,0,0.55)]">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
             type="button"
@@ -240,6 +241,7 @@ export const BlackjackTableView: React.FC<{
             <Settings className="w-4 h-4" />
           </button>
         </div>
+        <TableBankroll />
       </header>
 
       {(actionError || notice) && (

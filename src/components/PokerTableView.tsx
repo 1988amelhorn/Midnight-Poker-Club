@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { apiFetch } from '../lib/api.ts';
+import { TableBankroll } from './TableBankroll.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useGameSocket } from '../context/GameSocketContext.tsx';
 import {
@@ -563,7 +564,7 @@ export const PokerTableView: React.FC<{
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#05060d]/85 via-[#070914]/68 to-[#05060d]" />
 
       {/* Top Table HUD */}
-      <header className="neon-casino-panel relative z-20 flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 border-b border-sky-400/20 bg-[#080d1e]/90 backdrop-blur-xl shadow-[0_6px_28px_rgba(0,0,0,0.55)]">
+      <header className="neon-casino-panel relative z-20 shrink-0 flex flex-wrap items-center justify-between gap-2 px-3 sm:px-5 py-2.5 border-b border-sky-400/20 bg-[#080d1e]/90 backdrop-blur-xl shadow-[0_6px_28px_rgba(0,0,0,0.55)]">
         <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"
@@ -708,6 +709,7 @@ export const PokerTableView: React.FC<{
             <Settings className="w-4 h-4" />
           </button>
         </div>
+        <TableBankroll />
       </header>
 
       {(actionError || statusNotice) && (
