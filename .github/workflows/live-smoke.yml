@@ -22,4 +22,5 @@ jobs:
       - name: Test live production multiplayer
         env:
           SMOKE_URL: https://midnight-poker-club.vercel.app
+          SMOKE_WS_URL: wss://midnight-poker-club.enzonic.dev/ws
         run: node scripts/production-smoke.mjs
