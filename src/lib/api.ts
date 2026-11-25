@@ -58,17 +58,31 @@ export async function apiFetch<T = any>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(apiUrl(path), {
-    cache: 'no-store',
-    ...options,
-    headers,
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`);
+  const controller = new AbortController();
+  const abort = () => controller.abort(options.signal?.reason);
+  if (options.signal?.aborted) abort();
+  else options.signal?.addEventListener('abort', abort, { once: true });
+  const timeout = setTimeout(() => controller.abort(new Error('Server took too long to respond. Please retry.')), 15_000);
+  try {
+    const res = await fetch(apiUrl(path), {
+      cache: 'no-store',
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    // A proxy can return the app HTML with status 200 while the backend is
+    // unavailable. Treat it as a failed request so lobby recovery keeps trying.
+    const data = await res.json().catch(() => {
+      throw new Error(`Server returned an invalid response (${res.status}). Please retry.`);
+    });
+    if (!res.ok) {
+      throw new Error(data.error || `Request failed (${res.status})`);
+    }
+    return data as T;
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener('abort', abort);
   }
-  return data as T;
 }
 
 export function makeIdempotencyKey(prefix = 'act'): string {

@@ -73,9 +73,11 @@ async function run() {
     console.log('PASS: live poker hand started and actionable');
 
 
-    const wsAddress = base.replace(/^http/, 'ws') + '/ws?token=' + encodeURIComponent(players[0]);
+    // Match VITE_WS_URL: Vercel proxies HTTP, while WSS goes directly to Node.
+    const wsAddress = new URL(process.env.SMOKE_WS_URL || base.replace(/^http/, 'ws') + '/ws');
+    wsAddress.searchParams.set('token', players[0]);
     const message = await new Promise((resolve, reject) => {
-      const ws = new WebSocket(wsAddress, { handshakeTimeout: 15000 });
+      const ws = new WebSocket(wsAddress, { handshakeTimeout: 15000, origin: new URL(base).origin });
       const timer = setTimeout(() => { ws.terminate(); reject(new Error('WebSocket timeout')); }, 18000);
       ws.on('open', () => ws.send(JSON.stringify({ type: 'ping' })));
       ws.on('message', raw => {

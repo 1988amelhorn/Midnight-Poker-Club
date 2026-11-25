@@ -115,8 +115,22 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const loadTournamentSnapshot = useCallback(async (tournamentId: string) => {
     const data = await apiFetch<{ tournament: TournamentSummary }>(`/api/tournaments/${tournamentId}`);
+    if (activeTournIdRef.current !== tournamentId) return;
     setCurrentTournament(data.tournament);
   }, []);
+
+  // Missed wallet notifications and table broadcasts must recover even if a
+  // mobile connection stays offline for a while. Stop polling once WSS returns.
+  useEffect(() => {
+    if (!token || wsConnected) return;
+    return startLobbyRecovery(async () => {
+      await Promise.allSettled([
+        refreshWallet(),
+        ...(activeRoomIdRef.current ? [loadRoomSnapshot(activeRoomIdRef.current)] : []),
+        ...(activeTournIdRef.current ? [loadTournamentSnapshot(activeTournIdRef.current)] : []),
+      ]);
+    });
+  }, [token, wsConnected, refreshWallet, loadRoomSnapshot, loadTournamentSnapshot]);
 
   useEffect(() => {
     if (!token || multiplayerAvailable === false) {
@@ -143,6 +157,9 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         attempt = 0;
         setWsConnected(true);
         setReconnecting(false);
+        void refreshWallet().catch(() => {
+          setActionError('Connection restored, but chips could not sync. Please refresh your balance.');
+        });
         if (activeRoomIdRef.current) {
           const roomId = activeRoomIdRef.current;
           ws.send(JSON.stringify({ type: 'room:subscribe', roomId }));
@@ -166,9 +183,10 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         try {
           const msg = JSON.parse(evt.data);
           if (msg.type === 'room:state') {
+            if (msg.room?.id !== activeRoomIdRef.current) return;
             setCurrentRoom(msg.room);
-            if (msg.poker) setPokerState(msg.poker);
-            if (msg.blackjack) setBlackjackState(msg.blackjack);
+            setPokerState(msg.poker ?? null);
+            setBlackjackState(msg.blackjack ?? null);
           } else if (msg.type === 'chat:message' && msg.message) {
             setRoomChat((prev) => {
               if (prev.some((m) => m.id === msg.message.id)) return prev;
@@ -182,6 +200,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               void loadRoomSnapshot(msg.roomId).catch(() => setActionError('Open your tournament to find your new table.'));
             }
           } else if (msg.type === 'tournament:state' && msg.tournament) {
+            if (msg.tournament.id !== activeTournIdRef.current) return;
             setCurrentTournament(msg.tournament);
           } else if (msg.type === 'lobby:update') {
             // HTTP availability decides whether serverless room IDs are valid.
@@ -191,7 +210,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               if (msg.tournaments) setLobbyTournaments(msg.tournaments);
             }
           } else if (msg.type === 'wallet:refresh') {
-            void refreshWallet();
+            void refreshWallet().catch(() => setActionError('Chips could not sync. Please refresh your balance.'));
           } else if (msg.type === 'notifications:refresh') {
             setFriendRequestRefreshVersion((v) => v + 1);
             void refreshSession();
@@ -218,6 +237,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     connect();
     const refreshActiveTable = () => {
       if (!navigator.onLine) return;
+      void refreshWallet().catch(() => {});
       if (activeRoomIdRef.current) {
         const roomId = activeRoomIdRef.current;
         void loadRoomSnapshot(roomId).catch(() => {
@@ -263,7 +283,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setBlackjackState(null);
       setRoomChat([]);
     } else {
-      void loadRoomSnapshot(roomId);
+      void loadRoomSnapshot(roomId).catch(() => setActionError('Unable to load this table. Retrying…'));
     }
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'room:subscribe', roomId }));
@@ -275,7 +295,7 @@ export const GameSocketProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!tournamentId) {
       setCurrentTournament(null);
     } else {
-      void loadTournamentSnapshot(tournamentId);
+      void loadTournamentSnapshot(tournamentId).catch(() => setActionError('Unable to load this tournament. Please retry.'));
     }
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'tournament:subscribe', tournamentId }));
